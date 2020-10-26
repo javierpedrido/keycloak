@@ -39,16 +39,14 @@ import org.keycloak.representations.idm.authorization.*;
 import org.keycloak.storage.StorageId;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
@@ -119,7 +117,7 @@ public class ModelToRepresentation {
         rep.setPath(buildGroupPath(group));
         if (!full) return rep;
         // Role mappings
-        Set<RoleModel> roles = group.getRoleMappings();
+        Set<RoleModel> roles = group.getRoleMappingsStream().collect(Collectors.toSet());
         List<String> realmRoleNames = new ArrayList<>();
         Map<String, List<String>> clientRoleNames = new HashMap<>();
         for (RoleModel role : roles) {
@@ -139,63 +137,40 @@ public class ModelToRepresentation {
         return rep;
     }
 
-    public static List<GroupRepresentation> searchForGroupByName(RealmModel realm, boolean full, String search, Integer first, Integer max) {
-        List<GroupRepresentation> result = new LinkedList<>();
-        List<GroupModel> groups = realm.searchForGroupByName(search, first, max);
-        if (Objects.isNull(groups)) return result;
-        for (GroupModel group : groups) {
-            GroupRepresentation rep = toGroupHierarchy(group, full);
-            result.add(rep);
-        }
-        return result;
+    public static Stream<GroupRepresentation> searchForGroupByName(RealmModel realm, boolean full, String search, Integer first, Integer max) {
+        return realm.searchForGroupByNameStream(search, first, max)
+                .map(g -> toGroupHierarchy(g, full));
     }
 
-    public static List<GroupRepresentation> searchForGroupByName(UserModel user, boolean full, String search, Integer first, Integer max) {
-        return user.getGroups(search, first, max).stream()
-                .map(group -> toRepresentation(group, full))
-                .collect(Collectors.toList());
+    public static Stream<GroupRepresentation> searchForGroupByName(UserModel user, boolean full, String search, Integer first, Integer max) {
+        return user.getGroupsStream(search, first, max)
+                .map(group -> toRepresentation(group, full));
     }
 
-    public static List<GroupRepresentation> toGroupHierarchy(RealmModel realm, boolean full, Integer first, Integer max) {
-        List<GroupRepresentation> hierarchy = new LinkedList<>();
-        List<GroupModel> groups = realm.getTopLevelGroups(first, max);
-        if (Objects.isNull(groups)) return hierarchy;
-        for (GroupModel group : groups) {
-            GroupRepresentation rep = toGroupHierarchy(group, full);
-            hierarchy.add(rep);
-        }
-        return hierarchy;
+    public static Stream<GroupRepresentation> toGroupHierarchy(RealmModel realm, boolean full, Integer first, Integer max) {
+        return realm.getTopLevelGroupsStream(first, max)
+                .map(g -> toGroupHierarchy(g, full));
     }
 
-    public static List<GroupRepresentation> toGroupHierarchy(UserModel user, boolean full, Integer first, Integer max) {
-        return user.getGroups(first, max).stream()
-                .map(group -> toRepresentation(group, full))
-                .collect(Collectors.toList());
+    public static Stream<GroupRepresentation> toGroupHierarchy(UserModel user, boolean full, Integer first, Integer max) {
+        return user.getGroupsStream(null, first, max)
+                .map(group -> toRepresentation(group, full));
     }
 
-    public static List<GroupRepresentation> toGroupHierarchy(RealmModel realm, boolean full) {
-        List<GroupRepresentation> hierarchy = new LinkedList<>();
-        List<GroupModel> groups = realm.getTopLevelGroups();
-        if (Objects.isNull(groups)) return hierarchy;
-        for (GroupModel group : groups) {
-            GroupRepresentation rep = toGroupHierarchy(group, full);
-            hierarchy.add(rep);
-        }
-        return hierarchy;
+    public static Stream<GroupRepresentation> toGroupHierarchy(RealmModel realm, boolean full) {
+        return realm.getTopLevelGroupsStream()
+                .map(g -> toGroupHierarchy(g, full));
     }
 
-    public static List<GroupRepresentation> toGroupHierarchy(UserModel user, boolean full) {
-        return user.getGroups().stream()
-                .map(group -> toRepresentation(group, full))
-                .collect(Collectors.toList());
+    public static Stream<GroupRepresentation> toGroupHierarchy(UserModel user, boolean full) {
+        return user.getGroupsStream()
+                .map(group -> toRepresentation(group, full));
     }
 
     public static GroupRepresentation toGroupHierarchy(GroupModel group, boolean full) {
         GroupRepresentation rep = toRepresentation(group, full);
-        List<GroupRepresentation> subGroups = new LinkedList<>();
-        for (GroupModel subGroup : group.getSubGroups()) {
-            subGroups.add(toGroupHierarchy(subGroup, full));
-        }
+        List<GroupRepresentation> subGroups = group.getSubGroupsStream()
+                .map(subGroup -> toGroupHierarchy(subGroup, full)).collect(Collectors.toList());
         rep.setSubGroups(subGroups);
         return rep;
     }
@@ -346,12 +321,10 @@ public class ModelToRepresentation {
         if (realm.getEventsExpiration() != 0) {
             rep.setEventsExpiration(realm.getEventsExpiration());
         }
-        if (realm.getEventsListeners() != null) {
-            rep.setEventsListeners(new LinkedList<>(realm.getEventsListeners()));
-        }
-        if (realm.getEnabledEventTypes() != null) {
-            rep.setEnabledEventTypes(new LinkedList<>(realm.getEnabledEventTypes()));
-        }
+
+        rep.setEventsListeners(realm.getEventsListenersStream().collect(Collectors.toList()));
+
+        rep.setEnabledEventTypes(realm.getEnabledEventTypesStream().collect(Collectors.toList()));
 
         rep.setAdminEventsEnabled(realm.isAdminEventsEnabled());
         rep.setAdminEventsDetailsEnabled(realm.isAdminEventsDetailsEnabled());
@@ -432,41 +405,33 @@ public class ModelToRepresentation {
         if (realm.getClientAuthenticationFlow() != null) rep.setClientAuthenticationFlow(realm.getClientAuthenticationFlow().getAlias());
         if (realm.getDockerAuthenticationFlow() != null) rep.setDockerAuthenticationFlow(realm.getDockerAuthenticationFlow().getAlias());
 
-        List<String> defaultRoles = realm.getDefaultRoles();
+        List<String> defaultRoles = realm.getDefaultRolesStream().collect(Collectors.toList());
         if (!defaultRoles.isEmpty()) {
-            List<String> roleStrings = new ArrayList<>(defaultRoles);
-            rep.setDefaultRoles(roleStrings);
+            rep.setDefaultRoles(defaultRoles);
         }
-        List<GroupModel> defaultGroups = realm.getDefaultGroups();
+        List<String> defaultGroups = realm.getDefaultGroupsStream()
+                .map(ModelToRepresentation::buildGroupPath).collect(Collectors.toList());
         if (!defaultGroups.isEmpty()) {
-            List<String> groupPaths = new LinkedList<>();
-            for (GroupModel group : defaultGroups) {
-                groupPaths.add(ModelToRepresentation.buildGroupPath(group));
-            }
-            rep.setDefaultGroups(groupPaths);
+            rep.setDefaultGroups(defaultGroups);
         }
 
-        List<RequiredCredentialModel> requiredCredentialModels = realm.getRequiredCredentials();
-        if (!requiredCredentialModels.isEmpty()) {
-            rep.setRequiredCredentials(new HashSet<>());
-            for (RequiredCredentialModel cred : requiredCredentialModels) {
-                rep.getRequiredCredentials().add(cred.getType());
-            }
+        Set<String> reqCredentials = realm.getRequiredCredentialsStream()
+                .map(RequiredCredentialModel::getType)
+                .collect(Collectors.toSet());
+        if (!reqCredentials.isEmpty()) {
+            rep.setRequiredCredentials(reqCredentials);
         }
 
-        for (IdentityProviderModel provider : realm.getIdentityProviders()) {
-            rep.addIdentityProvider(toRepresentation(realm, provider));
-        }
+        List<IdentityProviderRepresentation> identityProviders = realm.getIdentityProvidersStream()
+                .map(provider -> toRepresentation(realm, provider)).collect(Collectors.toList());
+        rep.setIdentityProviders(identityProviders);
 
-        for (IdentityProviderMapperModel mapper : realm.getIdentityProviderMappers()) {
-            rep.addIdentityProviderMapper(toRepresentation(mapper));
-        }
+        List<IdentityProviderMapperRepresentation> identityProviderMappers = realm.getIdentityProviderMappersStream()
+                .map(ModelToRepresentation::toRepresentation).collect(Collectors.toList());
+        rep.setIdentityProviderMappers(identityProviderMappers);
 
         rep.setInternationalizationEnabled(realm.isInternationalizationEnabled());
-        if (realm.getSupportedLocales() != null) {
-            rep.setSupportedLocales(new HashSet<>());
-            rep.getSupportedLocales().addAll(realm.getSupportedLocales());
-        }
+        rep.setSupportedLocales(realm.getSupportedLocalesStream().collect(Collectors.toSet()));
         rep.setDefaultLocale(realm.getDefaultLocale());
         if (internal) {
             exportAuthenticationFlows(realm, rep);
@@ -502,52 +467,26 @@ public class ModelToRepresentation {
     }
 
     public static void exportGroups(RealmModel realm, RealmRepresentation rep) {
-        List<GroupRepresentation> groups = toGroupHierarchy(realm, true);
-        rep.setGroups(groups);
+        rep.setGroups(toGroupHierarchy(realm, true).collect(Collectors.toList()));
     }
 
     public static void exportAuthenticationFlows(RealmModel realm, RealmRepresentation rep) {
-        rep.setAuthenticationFlows(new LinkedList<>());
-        rep.setAuthenticatorConfig(new LinkedList<>());
+        List<AuthenticationFlowRepresentation> authenticationFlows = realm.getAuthenticationFlowsStream()
+                .sorted(AuthenticationFlowModel.AuthenticationFlowComparator.SINGLETON)
+                .map(flow -> toRepresentation(realm, flow))
+                .collect(Collectors.toList());
+        rep.setAuthenticationFlows(authenticationFlows);
 
-        List<AuthenticationFlowModel> authenticationFlows = new ArrayList<>(realm.getAuthenticationFlows());
-        //ensure consistent ordering of authenticationFlows.
-        Collections.sort(authenticationFlows, new Comparator<AuthenticationFlowModel>() {
-            @Override
-            public int compare(AuthenticationFlowModel left, AuthenticationFlowModel right) {
-                String l = left.getAlias() != null ? left.getAlias() : "\0";
-                String r = right.getAlias() != null ? right.getAlias() : "\0";
-                return l.compareTo(r);
-            }
-        });
-
-        for (AuthenticationFlowModel model : authenticationFlows) {
-            AuthenticationFlowRepresentation flowRep = toRepresentation(realm, model);
-            rep.getAuthenticationFlows().add(flowRep);
-        }
-
-        List<AuthenticatorConfigModel> authenticatorConfigs = new ArrayList<>(realm.getAuthenticatorConfigs());
-        //ensure consistent ordering of authenticatorConfigs.
-        Collections.sort(authenticatorConfigs, new Comparator<AuthenticatorConfigModel>() {
-            @Override
-            public int compare(AuthenticatorConfigModel left, AuthenticatorConfigModel right) {
-                String l = left.getAlias() != null ? left.getAlias() : "\0";
-                String r = right.getAlias() != null ? right.getAlias() : "\0";
-                return l.compareTo(r);
-            }
-        });
-
-        for (AuthenticatorConfigModel model : authenticatorConfigs) {
-            rep.getAuthenticatorConfig().add(toRepresentation(model));
-        }
-
+        List<AuthenticatorConfigRepresentation> authenticationConfigs = realm.getAuthenticatorConfigsStream()
+                .sorted(AuthenticatorConfigModel.AuthenticationConfigComparator.SINGLETON)
+                .map(ModelToRepresentation::toRepresentation)
+                .collect(Collectors.toList());
+        rep.setAuthenticatorConfig(authenticationConfigs);
     }
 
     public static void exportRequiredActions(RealmModel realm, RealmRepresentation rep) {
-
-        rep.setRequiredActions(new LinkedList<>());
-
-        realm.getRequiredActionProviders().forEach(action -> rep.getRequiredActions().add(toRepresentation(action)));
+        rep.setRequiredActions(realm.getRequiredActionProvidersStream()
+                .map(ModelToRepresentation::toRepresentation).collect(Collectors.toList()));
     }
 
     public static RealmEventsConfigRepresentation toEventsConfigReprensetation(RealmModel realm) {
@@ -558,13 +497,9 @@ public class ModelToRepresentation {
             rep.setEventsExpiration(realm.getEventsExpiration());
         }
 
-        if (realm.getEventsListeners() != null) {
-            rep.setEventsListeners(new LinkedList<>(realm.getEventsListeners()));
-        }
+        rep.setEventsListeners(realm.getEventsListenersStream().collect(Collectors.toList()));
 
-        if (realm.getEnabledEventTypes() != null) {
-            rep.setEnabledEventTypes(new LinkedList<>(realm.getEnabledEventTypes()));
-        }
+        rep.setEnabledEventTypes(realm.getEnabledEventTypesStream().collect(Collectors.toList()));
 
         rep.setAdminEventsEnabled(realm.isAdminEventsEnabled());
 
@@ -677,8 +612,9 @@ public class ModelToRepresentation {
             rep.setWebOrigins(new LinkedList<>(webOrigins));
         }
 
-        if (!clientModel.getDefaultRoles().isEmpty()) {
-            rep.setDefaultRoles(clientModel.getDefaultRoles().toArray(new String[0]));
+        String[] defaultRoles = clientModel.getDefaultRolesStream().toArray(String[]::new);
+        if (defaultRoles.length > 0) {
+            rep.setDefaultRoles(defaultRoles);
         }
 
         if (!clientModel.getRegisteredNodes().isEmpty()) {
@@ -790,12 +726,9 @@ public class ModelToRepresentation {
         rep.setProviderId(model.getProviderId());
         rep.setAlias(model.getAlias());
         rep.setDescription(model.getDescription());
-        rep.setAuthenticationExecutions(new LinkedList<>());
-        for (AuthenticationExecutionModel execution : realm.getAuthenticationExecutions(model.getId())) {
-            rep.getAuthenticationExecutions().add(toRepresentation(realm, execution));
-        }
+        rep.setAuthenticationExecutions(realm.getAuthenticationExecutionsStream(model.getId())
+                .map(e -> toRepresentation(realm, e)).collect(Collectors.toList()));
         return rep;
-
     }
 
     public static AuthenticationExecutionExportRepresentation toRepresentation(RealmModel realm, AuthenticationExecutionModel model) {
@@ -943,11 +876,11 @@ public class ModelToRepresentation {
         return representation;
     }
 
-    public static ResourceRepresentation toRepresentation(Resource model, ResourceServer resourceServer, AuthorizationProvider authorization) {
+    public static ResourceRepresentation toRepresentation(Resource model, String resourceServer, AuthorizationProvider authorization) {
         return toRepresentation(model, resourceServer, authorization, true);
     }
 
-    public static ResourceRepresentation toRepresentation(Resource model, ResourceServer resourceServer, AuthorizationProvider authorization, Boolean deep) {
+    public static ResourceRepresentation toRepresentation(Resource model, String resourceServer, AuthorizationProvider authorization, Boolean deep) {
         ResourceRepresentation resource = new ResourceRepresentation();
 
         resource.setId(model.getId());
@@ -965,8 +898,8 @@ public class ModelToRepresentation {
         KeycloakSession keycloakSession = authorization.getKeycloakSession();
         RealmModel realm = authorization.getRealm();
 
-        if (owner.getId().equals(resourceServer.getId())) {
-            ClientModel clientModel = realm.getClientById(resourceServer.getId());
+        if (owner.getId().equals(resourceServer)) {
+            ClientModel clientModel = realm.getClientById(resourceServer);
             owner.setName(clientModel.getClientId());
         } else {
             UserModel userModel = keycloakSession.users().getUserById(owner.getId(), realm);

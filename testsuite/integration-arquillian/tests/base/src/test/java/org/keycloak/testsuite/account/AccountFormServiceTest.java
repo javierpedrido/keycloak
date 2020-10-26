@@ -80,9 +80,13 @@ import java.util.Map;
 
 import org.hamcrest.Matchers;
 import org.junit.Assume;
+
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -196,7 +200,12 @@ public class AccountFormServiceTest extends AbstractTestRealmKeycloakTest {
 
     @Before
     public void before() {
-        userId = findUser("test-user@localhost").getId();
+        UserRepresentation user = findUser("test-user@localhost");
+
+        user.setEmail("test-user@localhost");
+        updateUser(user);
+
+        userId = user.getId();
 
         // Revert any password policy and user password changes
         setPasswordPolicy("");
@@ -407,6 +416,24 @@ public class AccountFormServiceTest extends AbstractTestRealmKeycloakTest {
         Assert.assertEquals("Invalid password: must not be equal to the username.", profilePage.getError());
         events.expectAccount(EventType.UPDATE_PASSWORD_ERROR).error(Errors.PASSWORD_REJECTED).assertEvent();
 
+
+        changePasswordPage.changePassword("password", "newPassword", "newPassword");
+        Assert.assertEquals("Your password has been updated.", profilePage.getSuccess());
+        events.expectAccount(EventType.UPDATE_PASSWORD).assertEvent();
+    }
+
+    // KEYCLOAK-12729
+    @Test
+    public void changePasswordWithNotEmailPolicy() {
+        setPasswordPolicy("notEmail(1)");
+
+        changePasswordPage.open();
+        loginPage.login("test-user@localhost", "password");
+        events.expectLogin().client("account").detail(Details.REDIRECT_URI, getAccountRedirectUrl() + "?path=password").assertEvent();
+
+        changePasswordPage.changePassword("password", "test-user@localhost", "test-user@localhost");
+        Assert.assertEquals("Invalid password: must not be equal to the email.", profilePage.getError());
+        events.expectAccount(EventType.UPDATE_PASSWORD_ERROR).error(Errors.PASSWORD_REJECTED).assertEvent();
 
         changePasswordPage.changePassword("password", "newPassword", "newPassword");
         Assert.assertEquals("Your password has been updated.", profilePage.getSuccess());
@@ -1129,8 +1156,8 @@ public class AccountFormServiceTest extends AbstractTestRealmKeycloakTest {
         Assert.assertTrue(sessionsPage.isCurrent());
 
         List<List<String>> sessions = sessionsPage.getSessions();
-        Assert.assertEquals(1, sessions.size());
-        Assert.assertEquals("127.0.0.1", sessions.get(0).get(0));
+        assertThat(sessions, hasSize(1));
+        assertThat(sessions.get(0).get(0), anyOf(equalTo("127.0.0.1"), equalTo("0:0:0:0:0:0:0:1")));
 
         // Create second session
         try {
@@ -1180,7 +1207,7 @@ public class AccountFormServiceTest extends AbstractTestRealmKeycloakTest {
 
             Map<String, AccountApplicationsPage.AppEntry> apps = applicationsPage.getApplications();
             Assert.assertThat(apps.keySet(), containsInAnyOrder(
-              /* "root-url-client", */ "Account", "Account Console", "test-app", "test-app-scope", "third-party", "test-app-authz", "My Named Test App", "Test App Named - ${client_account}", "direct-grant"));
+              /* "root-url-client", */ "Account", "Account Console", "test-app", "test-app-scope", "third-party", "test-app-authz", "My Named Test App", "Test App Named - ${client_account}", "direct-grant", "custom-audience"));
 
             rsu.add(testRealm().roles().get("user").toRepresentation())
               .update();
@@ -1188,7 +1215,7 @@ public class AccountFormServiceTest extends AbstractTestRealmKeycloakTest {
             driver.navigate().refresh();
             apps = applicationsPage.getApplications();
             Assert.assertThat(apps.keySet(), containsInAnyOrder(
-              "root-url-client", "Account", "Account Console", "test-app", "test-app-scope", "third-party", "test-app-authz", "My Named Test App", "Test App Named - ${client_account}", "direct-grant"));
+              "root-url-client", "Account", "Account Console", "test-app", "test-app-scope", "third-party", "test-app-authz", "My Named Test App", "Test App Named - ${client_account}", "direct-grant", "custom-audience"));
         }
     }
 
@@ -1207,7 +1234,7 @@ public class AccountFormServiceTest extends AbstractTestRealmKeycloakTest {
 
             Map<String, AccountApplicationsPage.AppEntry> apps = applicationsPage.getApplications();
             Assert.assertThat(apps.keySet(), containsInAnyOrder(
-              "root-url-client", "Account", "Account Console", "test-app", "test-app-scope", "third-party", "test-app-authz", "My Named Test App", "Test App Named - ${client_account}", "direct-grant"));
+              "root-url-client", "Account", "Account Console", "test-app", "test-app-scope", "third-party", "test-app-authz", "My Named Test App", "Test App Named - ${client_account}", "direct-grant", "custom-audience"));
         }
     }
 
@@ -1222,7 +1249,7 @@ public class AccountFormServiceTest extends AbstractTestRealmKeycloakTest {
         applicationsPage.assertCurrent();
 
         Map<String, AccountApplicationsPage.AppEntry> apps = applicationsPage.getApplications();
-        Assert.assertThat(apps.keySet(), containsInAnyOrder("root-url-client", "Account", "Account Console", "Broker", "test-app", "test-app-scope", "third-party", "test-app-authz", "My Named Test App", "Test App Named - ${client_account}", "direct-grant"));
+        Assert.assertThat(apps.keySet(), containsInAnyOrder("root-url-client", "Account", "Account Console", "Broker", "test-app", "test-app-scope", "third-party", "test-app-authz", "My Named Test App", "Test App Named - ${client_account}", "direct-grant", "custom-audience"));
 
         AccountApplicationsPage.AppEntry accountEntry = apps.get("Account");
         Assert.assertThat(accountEntry.getRolesAvailable(), containsInAnyOrder(

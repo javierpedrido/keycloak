@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -345,13 +346,13 @@ public final class OpenshiftSAClientAdapter extends AbstractReadOnlyClientStorag
     }
 
     @Override
-    public Set<RoleModel> getScopeMappings() {
-        return Collections.emptySet();
+    public Stream<RoleModel> getScopeMappingsStream() {
+        return Stream.empty();
     }
 
     @Override
-    public Set<RoleModel> getRealmScopeMappings() {
-        return Collections.emptySet();
+    public Stream<RoleModel> getRealmScopeMappingsStream() {
+        return Stream.empty();
     }
 
     @Override
@@ -389,8 +390,10 @@ public final class OpenshiftSAClientAdapter extends AbstractReadOnlyClientStorag
     }
 
     private ClientScopeModel createClientScope(String scope) {
-        ClientScopeModel managedScope = realm.getClientScopes().stream().filter(scopeModel -> scopeModel.getName().equals(scope))
-                .findAny().orElse(null);
+        ClientScopeModel managedScope = realm.getClientScopesStream()
+                .filter(scopeModel -> Objects.equals(scopeModel.getName(), scope))
+                .findAny()
+                .orElse(null);
 
         if (managedScope != null) {
             return managedScope;
@@ -464,13 +467,13 @@ public final class OpenshiftSAClientAdapter extends AbstractReadOnlyClientStorag
             }
 
             @Override
-            public Set<RoleModel> getScopeMappings() {
-                return Collections.emptySet();
+            public Stream<RoleModel> getScopeMappingsStream() {
+                return Stream.empty();
             }
 
             @Override
-            public Set<RoleModel> getRealmScopeMappings() {
-                return Collections.emptySet();
+            public Stream<RoleModel> getRealmScopeMappingsStream() {
+                return Stream.empty();
             }
 
             @Override

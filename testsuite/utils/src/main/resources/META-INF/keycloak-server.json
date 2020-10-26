@@ -18,6 +18,25 @@
         "provider": "${keycloak.realm.provider:}"
     },
 
+    "client": {
+        "provider": "${keycloak.client.provider:jpa}"
+    },
+
+    "group": {
+        "provider": "${keycloak.group.provider:jpa}"
+    },
+
+    "role": {
+        "provider": "${keycloak.role.provider:jpa}"
+    },
+
+    "mapStorage": {
+        "provider": "${keycloak.mapStorage.provider:concurrenthashmap}",
+        "concurrenthashmap": {
+            "dir": "${project.build.directory:target}"
+        }
+    },
+
     "user": {
         "provider": "${keycloak.user.provider:}"
     },

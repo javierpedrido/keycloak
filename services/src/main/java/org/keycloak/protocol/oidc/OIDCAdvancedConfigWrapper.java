@@ -166,6 +166,34 @@ public class OIDCAdvancedConfigWrapper {
         setAttribute(OIDCConfigAttributes.TOKEN_ENDPOINT_AUTH_SIGNING_ALG, algName);
     }
 
+    public String getBackchannelLogoutUrl() {
+        return getAttribute(OIDCConfigAttributes.BACKCHANNEL_LOGOUT_URL);
+    }
+
+    public void setBackchannelLogoutUrl(String backchannelLogoutUrl) {
+        setAttribute(OIDCConfigAttributes.BACKCHANNEL_LOGOUT_URL, backchannelLogoutUrl);
+    }
+
+    public boolean isBackchannelLogoutSessionRequired() {
+        String backchannelLogoutSessionRequired = getAttribute(OIDCConfigAttributes.BACKCHANNEL_LOGOUT_SESSION_REQUIRED);
+        return Boolean.parseBoolean(backchannelLogoutSessionRequired);
+    }
+
+    public void setBackchannelLogoutSessionRequired(boolean backchannelLogoutSessionRequired) {
+        String val = String.valueOf(backchannelLogoutSessionRequired);
+        setAttribute(OIDCConfigAttributes.BACKCHANNEL_LOGOUT_SESSION_REQUIRED, val);
+    }
+
+    public boolean getBackchannelLogoutRevokeOfflineTokens() {
+        String backchannelLogoutRevokeOfflineTokens = getAttribute(OIDCConfigAttributes.BACKCHANNEL_LOGOUT_REVOKE_OFFLINE_TOKENS);
+        return Boolean.parseBoolean(backchannelLogoutRevokeOfflineTokens);
+    }
+
+    public void setBackchannelLogoutRevokeOfflineTokens(boolean backchannelLogoutRevokeOfflineTokens) {
+        String val = String.valueOf(backchannelLogoutRevokeOfflineTokens);
+        setAttribute(OIDCConfigAttributes.BACKCHANNEL_LOGOUT_REVOKE_OFFLINE_TOKENS, val);
+    }
+
     private String getAttribute(String attrKey) {
         if (clientModel != null) {
             return clientModel.getAttribute(attrKey);

@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
@@ -34,8 +35,11 @@ public interface UserModel extends RoleMapperModel {
     String FIRST_NAME = "firstName";
     String LAST_NAME = "lastName";
     String EMAIL = "email";
+    String EMAIL_VERIFIED = "emailVerified";
     String LOCALE = "locale";
     String ENABLED = "enabled";
+    String IDP_ALIAS = "keycloak.session.realm.users.query.idp_alias";
+    String IDP_USER_ID = "keycloak.session.realm.users.query.idp_user_id";
     String INCLUDE_SERVICE_ACCOUNT = "keycloak.session.realm.users.query.include_service_account";
     String GROUPS = "keycloak.session.realm.users.query.groups";
     String SEARCH = "keycloak.session.realm.users.query.search";
@@ -118,18 +122,47 @@ public interface UserModel extends RoleMapperModel {
 
     void setEmailVerified(boolean verified);
 
-    Set<GroupModel> getGroups();
-
-    default Set<GroupModel> getGroups(int first, int max) {
-        return getGroups(null, first, max);
+    @Deprecated
+    default Set<GroupModel> getGroups() {
+        return getGroupsStream().collect(Collectors.toSet());
     }
 
+    Stream<GroupModel> getGroupsStream();
+
+    @Deprecated
+    default Set<GroupModel> getGroups(int first, int max) {
+        return getGroupsStream(null, first, max).collect(Collectors.toSet());
+    }
+
+    @Deprecated
     default Set<GroupModel> getGroups(String search, int first, int max) {
-        return getGroups().stream()
-                .filter(group -> search == null || group.getName().toLowerCase().contains(search.toLowerCase()))
-                .skip(first)
-                .limit(max)
+        return getGroupsStream(search, first, max)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    /**
+     * Returns a paginated stream of groups within this.realm with search in the name
+     *
+     * @param search Case insensitive string which will be searched for. Ignored if null.
+     * @param first Index of first group to return. Ignored if negative or {@code null}.
+     * @param max Maximum number of records to return. Ignored if negative or {@code null}.
+     * @return Stream of desired groups.
+     */
+    default Stream<GroupModel> getGroupsStream(String search, Integer first, Integer max) {
+        if (search != null) search = search.toLowerCase();
+        final String finalSearch = search;
+        Stream<GroupModel> groupModelStream = getGroupsStream()
+                .filter(group -> finalSearch == null || group.getName().toLowerCase().contains(finalSearch));
+
+        if (first != null && first > 0) {
+            groupModelStream = groupModelStream.skip(first);
+        }
+
+        if (max != null && max >= 0) {
+            groupModelStream = groupModelStream.limit(max);
+        }
+
+        return groupModelStream;
     }
 
     default long getGroupsCount() {
@@ -138,11 +171,11 @@ public interface UserModel extends RoleMapperModel {
     
     default long getGroupsCountByNameContaining(String search) {
         if (search == null) {
-            return getGroups().size();
+            return getGroupsStream().count();
         }
 
         String s = search.toLowerCase();
-        return getGroups().stream().filter(group -> group.getName().toLowerCase().contains(s)).count();
+        return getGroupsStream().filter(group -> group.getName().toLowerCase().contains(s)).count();
     }
 
     void joinGroup(GroupModel group);

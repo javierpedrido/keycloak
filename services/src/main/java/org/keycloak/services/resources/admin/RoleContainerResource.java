@@ -59,7 +59,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -101,20 +100,20 @@ public class RoleContainerResource extends RoleResource {
                                                @QueryParam("briefRepresentation") @DefaultValue("true") boolean briefRepresentation) {
         auth.roles().requireList(roleContainer);
 
-        Set<RoleModel> roleModels;
+        Stream<RoleModel> roleModels;
 
         if(search != null && search.trim().length() > 0) {
-            roleModels = roleContainer.searchForRoles(search, firstResult, maxResults);
+            roleModels = roleContainer.searchForRolesStream(search, firstResult, maxResults);
         } else if (!Objects.isNull(firstResult) && !Objects.isNull(maxResults)) {
-            roleModels = roleContainer.getRoles(firstResult, maxResults);
+            roleModels = roleContainer.getRolesStream(firstResult, maxResults);
         } else {
-            roleModels = roleContainer.getRoles();
+            roleModels = roleContainer.getRolesStream();
         }
 
         Function<RoleModel, RoleRepresentation> toRoleRepresentation = briefRepresentation ?
                 ModelToRepresentation::toBriefRepresentation :
                 ModelToRepresentation::toRepresentation;
-        return roleModels.stream().map(toRoleRepresentation);
+        return roleModels.map(toRoleRepresentation);
     }
 
     /**
@@ -260,13 +259,13 @@ public class RoleContainerResource extends RoleResource {
     @GET
     @NoCache
     @Produces(MediaType.APPLICATION_JSON)
-    public Set<RoleRepresentation> getRoleComposites(final @PathParam("role-name") String roleName) {
+    public Stream<RoleRepresentation> getRoleComposites(final @PathParam("role-name") String roleName) {
         auth.roles().requireView(roleContainer);
         RoleModel role = roleContainer.getRole(roleName);
         if (role == null) {
             throw new NotFoundException("Could not find role");
         }
-        return getRoleComposites(role);
+        return role.getCompositesStream().map(ModelToRepresentation::toBriefRepresentation);
     }
 
     /**
@@ -279,7 +278,7 @@ public class RoleContainerResource extends RoleResource {
     @GET
     @NoCache
     @Produces(MediaType.APPLICATION_JSON)
-    public Set<RoleRepresentation> getRealmRoleComposites(final @PathParam("role-name") String roleName) {
+    public Stream<RoleRepresentation> getRealmRoleComposites(final @PathParam("role-name") String roleName) {
         auth.roles().requireView(roleContainer);
         RoleModel role = roleContainer.getRole(roleName);
         if (role == null) {
@@ -289,25 +288,25 @@ public class RoleContainerResource extends RoleResource {
     }
 
     /**
-     * An app-level roles for the specified app for the role's composite
+     * Get client-level roles for the client that are in the role's composite
      *
      * @param roleName role's name (not id!)
-     * @param client
+     * @param clientUuid
      * @return
      */
-    @Path("{role-name}/composites/clients/{client}")
+    @Path("{role-name}/composites/clients/{clientUuid}")
     @GET
     @NoCache
     @Produces(MediaType.APPLICATION_JSON)
-    public Set<RoleRepresentation> getClientRoleComposites(final @PathParam("role-name") String roleName,
-                                                                final @PathParam("client") String client) {
+    public Stream<RoleRepresentation> getClientRoleComposites(final @PathParam("role-name") String roleName,
+                                                                final @PathParam("clientUuid") String clientUuid) {
         auth.roles().requireView(roleContainer);
         RoleModel role = roleContainer.getRole(roleName);
         if (role == null) {
             throw new NotFoundException("Could not find role");
         }
-        ClientModel clientModel = realm.getClientById(client);
-        if (client == null) {
+        ClientModel clientModel = realm.getClientById(clientUuid);
+        if (clientModel == null) {
             throw new NotFoundException("Could not find client");
 
         }
@@ -337,7 +336,7 @@ public class RoleContainerResource extends RoleResource {
     }
 
     /**
-     * Return object stating whether role Authoirzation permissions have been initialized or not and a reference
+     * Return object stating whether role Authorization permissions have been initialized or not and a reference
      *
      *
      * @param roleName
@@ -362,7 +361,7 @@ public class RoleContainerResource extends RoleResource {
     }
 
     /**
-     * Return object stating whether role Authoirzation permissions have been initialized or not and a reference
+     * Return object stating whether role Authorization permissions have been initialized or not and a reference
      *
      *
      * @param roleName
@@ -440,7 +439,7 @@ public class RoleContainerResource extends RoleResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @NoCache
-    public  List<GroupRepresentation> getGroupsInRole(final @PathParam("role-name") String roleName, 
+    public  Stream<GroupRepresentation> getGroupsInRole(final @PathParam("role-name") String roleName,
                                                     @QueryParam("first") Integer firstResult,
                                                     @QueryParam("max") Integer maxResults,
                                                     @QueryParam("briefRepresentation") @DefaultValue("true") boolean briefRepresentation) {
@@ -455,10 +454,8 @@ public class RoleContainerResource extends RoleResource {
             throw new NotFoundException("Could not find role");
         }
         
-        List<GroupModel> groupsModel = session.realms().getGroupsByRole(realm, role, firstResult, maxResults);
+        Stream<GroupModel> groupsModel = session.groups().getGroupsByRoleStream(realm, role, firstResult, maxResults);
 
-        return groupsModel.stream()
-        		.map(g -> ModelToRepresentation.toRepresentation(g, !briefRepresentation))
-        		.collect(Collectors.toList());
+        return groupsModel.map(g -> ModelToRepresentation.toRepresentation(g, !briefRepresentation));
     }   
 }

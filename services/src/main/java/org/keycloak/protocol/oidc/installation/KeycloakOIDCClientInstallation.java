@@ -22,7 +22,6 @@ import org.keycloak.authentication.ClientAuthenticator;
 import org.keycloak.authentication.ClientAuthenticatorFactory;
 import org.keycloak.authorization.admin.AuthorizationService;
 import org.keycloak.models.ClientModel;
-import org.keycloak.models.ClientScopeModel;
 import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
@@ -40,8 +39,8 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.net.URI;
+import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
@@ -58,7 +57,7 @@ public class KeycloakOIDCClientInstallation implements ClientInstallationProvide
 
         if (client.isPublicClient() && !client.isBearerOnly()) rep.setPublicClient(true);
         if (client.isBearerOnly()) rep.setBearerOnly(true);
-        if (client.getRoles().size() > 0) rep.setUseResourceRoleMappings(true);
+        if (client.getRolesStream().count() > 0) rep.setUseResourceRoleMappings(true);
 
         rep.setResource(client.getClientId());
 
@@ -104,22 +103,22 @@ public class KeycloakOIDCClientInstallation implements ClientInstallationProvide
 
     static boolean showVerifyTokenAudience(ClientModel client) {
         // We want to verify-token-audience if service client has any client roles
-        if (client.getRoles().size() > 0) {
+        if (client.getRolesStream().count() > 0) {
             return true;
         }
 
         // Check if there is client scope with audience protocol mapper created for particular client. If yes, admin wants verifying token audience
         String clientId = client.getClientId();
 
-        for (ClientScopeModel clientScope : client.getRealm().getClientScopes()) {
+        return client.getRealm().getClientScopesStream().anyMatch(clientScope -> {
             for (ProtocolMapperModel protocolMapper : clientScope.getProtocolMappers()) {
-                if (AudienceProtocolMapper.PROVIDER_ID.equals(protocolMapper.getProtocolMapper()) && (clientId.equals(protocolMapper.getConfig().get(AudienceProtocolMapper.INCLUDED_CLIENT_AUDIENCE)))) {
+                if (AudienceProtocolMapper.PROVIDER_ID.equals(protocolMapper.getProtocolMapper()) &&
+                        (clientId.equals(protocolMapper.getConfig().get(AudienceProtocolMapper.INCLUDED_CLIENT_AUDIENCE)))) {
                     return true;
                 }
             }
-        }
-
-        return false;
+            return false;
+        });
     }
 
 
@@ -187,13 +186,21 @@ public class KeycloakOIDCClientInstallation implements ClientInstallationProvide
 
             rep.setEnforcerConfig(enforcerConfig);
 
-            Set<RoleModel> clientRoles = client.getRoles();
+            Iterator<RoleModel> it = client.getRolesStream().iterator();
 
-            if (clientRoles.size() == 1) {
-                if (clientRoles.iterator().next().getName().equals(Constants.AUTHZ_UMA_PROTECTION)) {
-                    rep.setUseResourceRoleMappings(null);
-                }
+            RoleModel role = hasOnlyOne(it);
+            if (role != null && role.getName().equals(Constants.AUTHZ_UMA_PROTECTION)) {
+                rep.setUseResourceRoleMappings(null);
             }
+        }
+    }
+
+    private RoleModel hasOnlyOne(Iterator<RoleModel> it) {
+        if (!it.hasNext()) return null;
+        else {
+            RoleModel role = it.next();
+            if (it.hasNext()) return null;
+            else return role;
         }
     }
 }

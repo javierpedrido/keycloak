@@ -49,7 +49,6 @@ import org.keycloak.testsuite.federation.ldap.LDAPProvidersIntegrationTest;
 import org.keycloak.testsuite.federation.ldap.LDAPTestAsserts;
 import org.keycloak.testsuite.federation.ldap.LDAPTestContext;
 import org.keycloak.testsuite.util.LDAPTestUtils;
-import org.keycloak.testsuite.util.WaitUtils;
 
 
 /**
@@ -202,7 +201,7 @@ public class LDAPProvidersIntegrationNoImportTest extends LDAPProvidersIntegrati
             Assert.assertNull(session.users().getUserByUsername("fullname", appRealm));
 
             // Add the user with some fullName into LDAP directly. Ensure that fullName is saved into "cn" attribute in LDAP (currently mapped to model firstName)
-            ComponentModel ldapModel = LDAPTestUtils.getLdapProviderModel(session, appRealm);
+            ComponentModel ldapModel = LDAPTestUtils.getLdapProviderModel(appRealm);
             LDAPStorageProvider ldapFedProvider = LDAPTestUtils.getLdapProvider(session, ldapModel);
             LDAPTestUtils.addLDAPUser(ldapFedProvider, appRealm, "fullname", "James Dee", "Dee", "fullname@email.org", null, "4578");
 
@@ -275,6 +274,7 @@ public class LDAPProvidersIntegrationNoImportTest extends LDAPProvidersIntegrati
         UserRepresentation johnRep = john.toRepresentation();
         String firstNameOrig = johnRep.getFirstName();
         String lastNameOrig = johnRep.getLastName();
+        String emailOrig = johnRep.getEmail();
         String postalCodeOrig = johnRep.getAttributes().get("postal_code").get(0);
 
         try {
@@ -327,6 +327,10 @@ public class LDAPProvidersIntegrationNoImportTest extends LDAPProvidersIntegrati
             johnRep.setLastName(lastNameOrig);
             johnRep.singleAttribute("postal_code", postalCodeOrig);
             john.update(johnRep);
+            Assert.assertEquals(firstNameOrig, johnRep.getFirstName());
+            Assert.assertEquals(lastNameOrig, johnRep.getLastName());
+            Assert.assertEquals(emailOrig, johnRep.getEmail());
+            Assert.assertEquals(postalCodeOrig, johnRep.getAttributes().get("postal_code").get(0));
         }
     }
 

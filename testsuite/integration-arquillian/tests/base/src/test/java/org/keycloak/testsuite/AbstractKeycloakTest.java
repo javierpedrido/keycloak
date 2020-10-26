@@ -76,6 +76,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.function.Consumer;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
@@ -492,19 +493,30 @@ public abstract class AbstractKeycloakTest {
         return ApiUtil.createUserWithAdminClient(adminClient.realm(realm), homer);
     }
 
+    public String createUser(String realm, String username, String password, String firstName, String lastName, String email, Consumer<UserRepresentation> customizer) {
+        UserRepresentation user = createUserRepresentation(username, email, firstName, lastName, true, password);
+        customizer.accept(user);
+        return ApiUtil.createUserWithAdminClient(adminClient.realm(realm), user);
+    }
+
     public String createUser(String realm, String username, String password, String firstName, String lastName, String email) {
         UserRepresentation homer = createUserRepresentation(username, email, firstName, lastName, true, password);
         return ApiUtil.createUserWithAdminClient(adminClient.realm(realm), homer);
     }
 
-    public static UserRepresentation createUserRepresentation(String username, String email, String firstName, String lastName, boolean enabled) {
+    public static UserRepresentation createUserRepresentation(String username, String email, String firstName, String lastName, List<String> groups, boolean enabled) {
         UserRepresentation user = new UserRepresentation();
         user.setUsername(username);
         user.setEmail(email);
         user.setFirstName(firstName);
         user.setLastName(lastName);
+        user.setGroups(groups);
         user.setEnabled(enabled);
         return user;
+    }
+
+    public static UserRepresentation createUserRepresentation(String username, String email, String firstName, String lastName, boolean enabled) {
+        return createUserRepresentation(username, email, firstName, lastName, null, enabled);
     }
 
     public static UserRepresentation createUserRepresentation(String username, String email, String firstName, String lastName, boolean enabled, String password) {

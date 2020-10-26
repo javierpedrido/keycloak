@@ -36,10 +36,10 @@ import org.keycloak.models.UserModel;
 import org.keycloak.models.cache.CachedUserModel;
 import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.models.utils.KeycloakModelUtils;
-import org.keycloak.models.utils.ModelToRepresentation;
 import org.keycloak.representations.AccessToken;
 import org.keycloak.representations.idm.ComponentRepresentation;
 import org.keycloak.representations.idm.CredentialRepresentation;
+import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.keycloak.services.managers.RealmManager;
 import org.keycloak.storage.ReadOnlyException;
@@ -49,8 +49,6 @@ import org.keycloak.storage.UserStorageProviderModel;
 import org.keycloak.storage.ldap.LDAPConfig;
 import org.keycloak.storage.ldap.LDAPStorageProvider;
 import org.keycloak.storage.ldap.idm.model.LDAPObject;
-import org.keycloak.storage.ldap.mappers.FullNameLDAPStorageMapper;
-import org.keycloak.storage.ldap.mappers.FullNameLDAPStorageMapperFactory;
 import org.keycloak.storage.ldap.mappers.HardcodedLDAPAttributeMapper;
 import org.keycloak.storage.ldap.mappers.HardcodedLDAPAttributeMapperFactory;
 import org.keycloak.storage.ldap.mappers.HardcodedLDAPGroupStorageMapper;
@@ -68,10 +66,10 @@ import org.keycloak.testsuite.util.OAuthClient;
 
 import javax.naming.AuthenticationException;
 import javax.ws.rs.core.Response;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
@@ -504,7 +502,7 @@ public class LDAPProvidersIntegrationTest extends AbstractLDAPTest {
             LDAPTestContext ctx = LDAPTestContext.init(session);
             RealmModel appRealm = ctx.getRealm();
 
-            ComponentModel ldapModel = LDAPTestUtils.getLdapProviderModel(session, appRealm);
+            ComponentModel ldapModel = LDAPTestUtils.getLdapProviderModel(appRealm);
             LDAPStorageProvider ldapFedProvider = LDAPTestUtils.getLdapProvider(session, ldapModel);
             LDAPObject johnZip = LDAPTestUtils.addLDAPUser(ldapFedProvider, appRealm, "johnzip", "John", "Zip", "johnzip@email.org", null, "12398");
 
@@ -551,80 +549,6 @@ public class LDAPProvidersIntegrationTest extends AbstractLDAPTest {
             loginSuccessAndLogout("john,comma", "Password1");
             loginSuccessAndLogout("john+plus,comma", "Password1");
         }
-    }
-
-
-    // TODO: Rather separate test class for fullNameMapper to better test all the possibilities
-    @Test
-    public void testFullNameMapper() {
-
-        ComponentRepresentation firstNameMapperRep = testingClient.server().fetch(session -> {
-            LDAPTestContext ctx = LDAPTestContext.init(session);
-            RealmModel appRealm = ctx.getRealm();
-
-            // assert that user "fullnameUser" is not in local DB
-            Assert.assertNull(session.users().getUserByUsername("fullname", appRealm));
-
-            // Add the user with some fullName into LDAP directly. Ensure that fullName is saved into "cn" attribute in LDAP (currently mapped to model firstName)
-            ComponentModel ldapModel = LDAPTestUtils.getLdapProviderModel(session, appRealm);
-            LDAPStorageProvider ldapFedProvider = LDAPTestUtils.getLdapProvider(session, ldapModel);
-            LDAPTestUtils.addLDAPUser(ldapFedProvider, appRealm, "fullname", "James Dee", "Dee", "fullname@email.org", null, "4578");
-
-            // add fullname mapper to the provider and remove "firstNameMapper". For this test, we will simply map full name to the LDAP attribute, which was before firstName ( "givenName" on active directory, "cn" on other LDAP servers)
-            ComponentModel firstNameMapper =  LDAPTestUtils.getSubcomponentByName(appRealm, ldapModel, "first name");
-            String ldapFirstNameAttributeName = firstNameMapper.getConfig().getFirst(UserAttributeLDAPStorageMapper.LDAP_ATTRIBUTE);
-            appRealm.removeComponent(firstNameMapper);
-
-            ComponentRepresentation firstNameMapperRepp = ModelToRepresentation.toRepresentation(session, firstNameMapper, true);
-
-            ComponentModel fullNameMapperModel = KeycloakModelUtils.createComponentModel("full name", ldapModel.getId(), FullNameLDAPStorageMapperFactory.PROVIDER_ID, LDAPStorageMapper.class.getName(),
-                    FullNameLDAPStorageMapper.LDAP_FULL_NAME_ATTRIBUTE, ldapFirstNameAttributeName,
-                    FullNameLDAPStorageMapper.READ_ONLY, "false");
-            appRealm.addComponentModel(fullNameMapperModel);
-
-            return firstNameMapperRepp;
-        }, ComponentRepresentation.class);
-
-        testingClient.server().run(session -> {
-            LDAPTestContext ctx = LDAPTestContext.init(session);
-            RealmModel appRealm = ctx.getRealm();
-
-            // Assert user is successfully imported in Keycloak DB now with correct firstName and lastName
-            LDAPTestAsserts.assertUserImported(session.users(), appRealm, "fullname", "James", "Dee", "fullname@email.org", "4578");
-        });
-
-        // Assert user will be changed in LDAP too
-        testingClient.server().run(session -> {
-            LDAPTestContext ctx = LDAPTestContext.init(session);
-            RealmModel appRealm = ctx.getRealm();
-
-            UserModel fullnameUser = session.users().getUserByUsername("fullname", appRealm);
-            fullnameUser.setFirstName("James2");
-            fullnameUser.setLastName("Dee2");
-        });
-
-
-        // Assert changed user available in Keycloak
-        testingClient.server().run(session -> {
-            LDAPTestContext ctx = LDAPTestContext.init(session);
-            RealmModel appRealm = ctx.getRealm();
-
-            // Assert user is successfully imported in Keycloak DB now with correct firstName and lastName
-            LDAPTestAsserts.assertUserImported(session.users(), appRealm, "fullname", "James2", "Dee2", "fullname@email.org", "4578");
-
-            // Remove "fullnameUser" to assert he is removed from LDAP. Revert mappers to previous state
-            UserModel fullnameUser = session.users().getUserByUsername("fullname", appRealm);
-            session.users().removeUser(appRealm, fullnameUser);
-
-            // Revert mappers
-            ComponentModel fullNameMapperModel = LDAPTestUtils.getSubcomponentByName(appRealm, ctx.getLdapModel(), "full name");
-            appRealm.removeComponent(fullNameMapperModel);
-        });
-
-        firstNameMapperRep.setId(null);
-        Response response = testRealm().components().add(firstNameMapperRep);
-        Assert.assertEquals(201, response.getStatus());
-        response.close();
     }
 
 
@@ -730,11 +654,12 @@ public class LDAPProvidersIntegrationTest extends AbstractLDAPTest {
 
     @Test
     public void testHardcodedGroupMapper() {
+        final String uuid = UUID.randomUUID().toString();
         testingClient.server().run(session -> {
             LDAPTestContext ctx = LDAPTestContext.init(session);
             RealmModel appRealm = ctx.getRealm();
 
-            GroupModel hardcodedGroup = appRealm.createGroup("hardcoded-group", "hardcoded-group");
+            GroupModel hardcodedGroup = appRealm.createGroup(uuid, "hardcoded-group");
 
             // assert that user "johnkeycloak" doesn't have hardcoded group
             UserModel john = session.users().getUserByUsername("johnkeycloak", appRealm);
@@ -750,7 +675,7 @@ public class LDAPProvidersIntegrationTest extends AbstractLDAPTest {
             LDAPTestContext ctx = LDAPTestContext.init(session);
             RealmModel appRealm = ctx.getRealm();
 
-            GroupModel hardcodedGroup = appRealm.getGroupById("hardcoded-group");
+            GroupModel hardcodedGroup = appRealm.getGroupById(uuid);
 
             // Assert user is successfully imported in Keycloak DB now with correct firstName and lastName
             UserModel john = session.users().getUserByUsername("johnkeycloak", appRealm);
@@ -1220,5 +1145,28 @@ public class LDAPProvidersIntegrationTest extends AbstractLDAPTest {
             List<UserModel> userNotVerified = session.users().searchForUser("john2@test.com", appRealm);
             Assert.assertFalse(userNotVerified.get(0).isEmailVerified());
         });
+    }
+
+    @Test
+    public void testUserAttributeLDAPStorageMapperHandlingUsernameLowercasing() {
+        setEditingUsernameAllowed(false);
+
+        testingClient.server().run(session -> {
+            LDAPTestContext ctx = LDAPTestContext.init(session);
+            RealmModel appRealm = ctx.getRealm();
+
+            UserModel johnkeycloak = session.users().getUserByUsername("johnkeycloak", appRealm);
+            // If the username was case sensitive in the username-cn mapper, then this would throw an exception
+            johnkeycloak.setSingleAttribute(UserModel.USERNAME, "JohnKeycloak");
+        });
+
+        // Cleanup
+        setEditingUsernameAllowed(true);
+    }
+
+    private void setEditingUsernameAllowed(boolean allowed) {
+        RealmRepresentation realmRepresentation = testRealm().toRepresentation();
+        realmRepresentation.setEditUsernameAllowed(allowed);
+        testRealm().update(realmRepresentation);
     }
 }

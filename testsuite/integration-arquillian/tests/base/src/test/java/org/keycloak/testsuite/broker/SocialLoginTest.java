@@ -16,7 +16,6 @@ import org.keycloak.common.Profile;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.IdentityProviderMapperModel;
 import org.keycloak.models.IdentityProviderMapperSyncMode;
-import org.keycloak.models.IdentityProviderModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
@@ -209,7 +208,7 @@ public class SocialLoginTest extends AbstractKeycloakTest {
 
     public static void setupClientExchangePermissions(KeycloakSession session) {
         RealmModel realm = session.realms().getRealmByName(REALM);
-        ClientModel client = session.realms().getClientByClientId(EXCHANGE_CLIENT, realm);
+        ClientModel client = session.clients().getClientByClientId(realm, EXCHANGE_CLIENT);
         // lazy init
         if (client != null) return;
         client = realm.addClient(EXCHANGE_CLIENT);
@@ -228,11 +227,10 @@ public class SocialLoginTest extends AbstractKeycloakTest {
         Policy clientPolicy = management.authz().getStoreFactory().getPolicyStore().create(clientPolicyRep, server);
         management.users().adminImpersonatingPermission().addAssociatedPolicy(clientPolicy);
         management.users().adminImpersonatingPermission().setDecisionStrategy(DecisionStrategy.AFFIRMATIVE);
-        for (IdentityProviderModel idp : realm.getIdentityProviders()) {
+        realm.getIdentityProvidersStream().forEach(idp -> {
             management.idps().setPermissionsEnabled(idp, true);
             management.idps().exchangeToPermission(idp).addAssociatedPolicy(clientPolicy);
-        }
-
+        });
     }
 
     @Test
@@ -333,7 +331,7 @@ public class SocialLoginTest extends AbstractKeycloakTest {
     public void instagramLogin() throws InterruptedException {
         setTestProvider(INSTAGRAM);
         performLogin();
-        assertUpdateProfile(false, false, true);
+        assertUpdateProfile(true, true, true);
         assertAccount();
     }
 

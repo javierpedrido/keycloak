@@ -40,6 +40,7 @@ import java.util.Scanner;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import javax.ws.rs.core.UriInfo;
 import org.keycloak.services.resources.RealmsResource;
 
@@ -83,12 +84,14 @@ public class AccountConsole {
         } else {
             Map<String, Object> map = new HashMap<>();
 
+            URI adminBaseUri = session.getContext().getUri(UrlType.ADMIN).getBaseUri();
             UriInfo uriInfo = session.getContext().getUri(UrlType.FRONTEND);
             URI authUrl = uriInfo.getBaseUri();
             map.put("authUrl", authUrl.toString());
             map.put("baseUrl", uriInfo.getBaseUriBuilder().path(RealmsResource.class).path(realm.getName()).path(Constants.ACCOUNT_MANAGEMENT_CLIENT_ID).build(realm).toString());
             map.put("realm", realm);
             map.put("resourceUrl", Urls.themeRoot(authUrl).getPath() + "/" + Constants.ACCOUNT_MANAGEMENT_CLIENT_ID + "/" + theme.getName());
+            map.put("resourceCommonUrl", Urls.themeRoot(adminBaseUri).getPath() + "/common/keycloak");
             map.put("resourceVersion", Version.RESOURCES_VERSION);
             
             String[] referrer = getReferrer();
@@ -133,13 +136,9 @@ public class AccountConsole {
         }
     }
     
-    private Map<String, String> supportedLocales(Properties messages) throws IOException {
-        Map<String, String> supportedLocales = new HashMap<>();
-        for (String l : realm.getSupportedLocales()) {
-            String label = messages.getProperty("locale_" + l, l);
-            supportedLocales.put(l, label);
-        }
-        return supportedLocales;
+    private Map<String, String> supportedLocales(Properties messages) {
+        return realm.getSupportedLocalesStream()
+                .collect(Collectors.toMap(Function.identity(), l -> messages.getProperty("locale_" + l, l)));
     }
     
     private String messagesToJsonString(Properties props) {

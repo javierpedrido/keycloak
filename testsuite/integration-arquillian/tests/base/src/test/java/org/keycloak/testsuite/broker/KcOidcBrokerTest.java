@@ -2,6 +2,7 @@ package org.keycloak.testsuite.broker;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.keycloak.admin.client.resource.ClientResource;
 import org.keycloak.admin.client.resource.ClientsResource;
@@ -15,6 +16,8 @@ import org.keycloak.broker.oidc.mappers.UserAttributeMapper;
 import org.keycloak.crypto.Algorithm;
 import org.keycloak.models.IdentityProviderMapperModel;
 import org.keycloak.models.IdentityProviderMapperSyncMode;
+import org.keycloak.models.IdentityProviderModel;
+import org.keycloak.models.IdentityProviderSyncMode;
 import org.keycloak.protocol.oidc.OIDCConfigAttributes;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.idm.ClientRepresentation;
@@ -24,9 +27,13 @@ import org.keycloak.representations.idm.ProtocolMapperRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.keycloak.testsuite.Assert;
+import org.keycloak.testsuite.admin.ApiUtil;
+import org.keycloak.testsuite.util.WaitUtils;
 
+import javax.ws.rs.core.Response;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -393,6 +400,148 @@ public final class KcOidcBrokerTest extends AbstractAdvancedBrokerTest {
         log.debug("Logging in");
         loginPage.login(bc.getUserLogin(), bc.getUserPassword());
         errorPage.assertCurrent();
+    }
+
+    @Test
+    public void testMissingStateParameter() {
+        final String IDP_NAME = "github";
+
+        RealmResource realmResource = Optional.ofNullable(realmsResouce().realm(bc.providerRealmName())).orElse(null);
+        assertThat(realmResource, Matchers.notNullValue());
+        final int COUNT_PROVIDERS = Optional.of(realmResource.identityProviders().findAll().size()).orElse(0);
+
+        try {
+            IdentityProviderRepresentation idp = new IdentityProviderRepresentation();
+            idp.setAlias(IDP_NAME);
+            idp.setDisplayName(IDP_NAME);
+            idp.setProviderId(IDP_NAME);
+            idp.setEnabled(true);
+
+            Response response = realmResource.identityProviders().create(idp);
+            assertThat(response, Matchers.notNullValue());
+            assertThat(response.getStatus(), Matchers.is(Response.Status.CREATED.getStatusCode()));
+            assertThat(realmResource.identityProviders().findAll().size(), Matchers.is(COUNT_PROVIDERS + 1));
+            assertThat(ApiUtil.getCreatedId(response), Matchers.notNullValue());
+
+            IdentityProviderRepresentation provider = Optional.ofNullable(realmResource.identityProviders().get(IDP_NAME).toRepresentation()).orElse(null);
+            assertThat(provider, Matchers.notNullValue());
+            assertThat(provider.getProviderId(), Matchers.is(IDP_NAME));
+            assertThat(provider.getAlias(), Matchers.is(IDP_NAME));
+            assertThat(provider.getDisplayName(), Matchers.is(IDP_NAME));
+
+            final String REALM_NAME = Optional.ofNullable(realmResource.toRepresentation().getRealm()).orElse(null);
+            assertThat(REALM_NAME, Matchers.notNullValue());
+
+            final String LINK = oauth.AUTH_SERVER_ROOT + "/realms/" + REALM_NAME + "/broker/" + IDP_NAME + "/endpoint?code=foo123";
+
+            driver.navigate().to(LINK);
+            waitForPage(driver, "log in to provider", true);
+
+            errorPage.assertCurrent();
+            assertThat(errorPage.getError(), Matchers.is("Missing state parameter in response from identity provider."));
+
+        } finally {
+            IdentityProviderResource resource = Optional.ofNullable(realmResource.identityProviders().get(IDP_NAME)).orElse(null);
+            assertThat(resource, Matchers.notNullValue());
+            resource.remove();
+            assertThat(Optional.of(realmResource.identityProviders().findAll().size()).orElse(0), Matchers.is(COUNT_PROVIDERS));
+        }
+    }
+
+    @Test
+    public void testIdPForceSyncUserAttributes() {
+        checkUpdatedUserAttributesIdP(true);
+    }
+
+    @Test
+    public void testIdPNotForceSyncUserAttributes() {
+        checkUpdatedUserAttributesIdP(false);
+    }
+
+    private void checkUpdatedUserAttributesIdP(boolean isForceSync) {
+        final String IDP_NAME = getBrokerConfiguration().getIDPAlias();
+        final String USERNAME = "demoUser";
+
+        final String FIRST_NAME = "John";
+        final String LAST_NAME = "Doe";
+        final String EMAIL = "mail@example.com";
+
+        final String NEW_FIRST_NAME = "Jack";
+        final String NEW_LAST_NAME = "Doee";
+        final String NEW_EMAIL = "mail123@example.com";
+
+        UsersResource providerUserResource = Optional.ofNullable(realmsResouce().realm(bc.providerRealmName()).users()).orElse(null);
+        assertThat("Cannot get User Resource from Provider realm", providerUserResource, Matchers.notNullValue());
+
+        String userID = createUser(bc.providerRealmName(), USERNAME, USERNAME, FIRST_NAME, LAST_NAME, EMAIL);
+        assertThat("Cannot create user : " + USERNAME, userID, Matchers.notNullValue());
+
+        try {
+            UserRepresentation user = Optional.ofNullable(providerUserResource.get(userID).toRepresentation()).orElse(null);
+            assertThat("Cannot get user from provider", user, Matchers.notNullValue());
+
+            IdentityProviderResource consumerIdentityResource = Optional.ofNullable(getIdentityProviderResource()).orElse(null);
+            assertThat("Cannot get Identity Provider resource", consumerIdentityResource, Matchers.notNullValue());
+
+            IdentityProviderRepresentation idProvider = Optional.ofNullable(consumerIdentityResource.toRepresentation()).orElse(null);
+            assertThat("Cannot get Identity Provider", idProvider, Matchers.notNullValue());
+
+            updateIdPSyncMode(idProvider, consumerIdentityResource, isForceSync ? IdentityProviderSyncMode.FORCE : IdentityProviderSyncMode.IMPORT);
+
+            driver.navigate().to(getAccountUrl(getConsumerRoot(), bc.consumerRealmName()));
+            WaitUtils.waitForPageToLoad();
+
+            assertThat(driver.getTitle(), Matchers.containsString("Log in to " + bc.consumerRealmName()));
+            logInWithIdp(IDP_NAME, USERNAME, USERNAME);
+            accountUpdateProfilePage.assertCurrent();
+
+            logoutFromRealm(getProviderRoot(), bc.providerRealmName());
+            logoutFromRealm(getConsumerRoot(), bc.consumerRealmName());
+
+            driver.navigate().to(getAccountUrl(getProviderRoot(), bc.providerRealmName()));
+            WaitUtils.waitForPageToLoad();
+
+            assertThat(driver.getTitle(), Matchers.containsString("Log in to " + bc.providerRealmName()));
+
+            loginPage.login(USERNAME, USERNAME);
+            WaitUtils.waitForPageToLoad();
+
+            accountUpdateProfilePage.assertCurrent();
+            accountUpdateProfilePage.updateProfile(NEW_FIRST_NAME, NEW_LAST_NAME, NEW_EMAIL);
+            logoutFromRealm(getProviderRoot(), bc.providerRealmName());
+
+            driver.navigate().to(getAccountUrl(getConsumerRoot(), bc.consumerRealmName()));
+            WaitUtils.waitForPageToLoad();
+
+            assertThat(driver.getTitle(), Matchers.containsString("Log in to " + bc.consumerRealmName()));
+            logInWithIdp(IDP_NAME, USERNAME, USERNAME);
+
+            accountUpdateProfilePage.assertCurrent();
+
+            assertThat(accountUpdateProfilePage.getEmail(), Matchers.equalTo(isForceSync ? NEW_EMAIL : EMAIL));
+            assertThat(accountUpdateProfilePage.getFirstName(), Matchers.equalTo(isForceSync ? NEW_FIRST_NAME : FIRST_NAME));
+            assertThat(accountUpdateProfilePage.getLastName(), Matchers.equalTo(isForceSync ? NEW_LAST_NAME : LAST_NAME));
+        } finally {
+            providerUserResource.delete(userID);
+            assertThat("User wasn't deleted", providerUserResource.search(USERNAME).size(), Matchers.is(0));
+        }
+    }
+
+    private void updateIdPSyncMode(IdentityProviderRepresentation idProvider, IdentityProviderResource idProviderResource, IdentityProviderSyncMode syncMode) {
+        assertThat(idProvider, Matchers.notNullValue());
+        assertThat(idProviderResource, Matchers.notNullValue());
+        assertThat(syncMode, Matchers.notNullValue());
+
+        if (idProvider.getConfig().get(IdentityProviderModel.SYNC_MODE).equals(syncMode.name())) {
+            return;
+        }
+
+        idProvider.getConfig().put(IdentityProviderModel.SYNC_MODE, syncMode.name());
+        idProviderResource.update(idProvider);
+
+        idProvider = Optional.ofNullable(idProviderResource.toRepresentation()).orElse(null);
+        assertThat("Cannot get Identity Provider", idProvider, Matchers.notNullValue());
+        assertThat("Sync mode didn't change", idProvider.getConfig().get(IdentityProviderModel.SYNC_MODE), Matchers.equalTo(syncMode.name()));
     }
 
     private UserRepresentation getFederatedIdentity() {

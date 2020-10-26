@@ -44,12 +44,7 @@ import org.keycloak.storage.ldap.mappers.membership.role.RoleLDAPStorageMapper;
 import org.keycloak.storage.ldap.mappers.membership.role.RoleLDAPStorageMapperFactory;
 import org.keycloak.storage.ldap.mappers.membership.role.RoleMapperConfig;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * @author <a href="mailto:mposolda@redhat.com">Marek Posolda</a>
@@ -137,14 +132,11 @@ public class LDAPTestUtils {
         }
     }
 
-    public static ComponentModel getLdapProviderModel(KeycloakSession session, RealmModel realm) {
-        List<ComponentModel> components = realm.getComponents(realm.getId(), UserStorageProvider.class.getName());
-        for (ComponentModel component : components) {
-            if (LDAPStorageProviderFactory.PROVIDER_NAME.equals(component.getProviderId())) {
-                return component;
-            }
-        }
-        return null;
+    public static ComponentModel getLdapProviderModel(RealmModel realm) {
+        return realm.getComponentsStream(realm.getId(), UserStorageProvider.class.getName())
+                .filter(component -> Objects.equals(component.getProviderId(), LDAPStorageProviderFactory.PROVIDER_NAME))
+                .findFirst()
+                .orElse(null);
     }
 
     public static LDAPStorageProvider getLdapProvider(KeycloakSession keycloakSession, ComponentModel ldapFedModel) {
@@ -198,13 +190,10 @@ public class LDAPTestUtils {
     }
 
     public static ComponentModel getSubcomponentByName(RealmModel realm, ComponentModel providerModel, String name) {
-        List<ComponentModel> components = realm.getComponents(providerModel.getId(), LDAPStorageMapper.class.getName());
-        for (ComponentModel component : components) {
-            if (component.getName().equals(name)) {
-               return component;
-            }
-        }
-        return null;
+        return realm.getComponentsStream(providerModel.getId(), LDAPStorageMapper.class.getName())
+                .filter(component -> Objects.equals(name, component.getName()))
+                .findFirst()
+                .orElse(null);
     }
 
     public static void addOrUpdateGroupMapper(RealmModel realm, ComponentModel providerModel, LDAPGroupMapperMode mode, String descriptionAttrName, String... otherConfigOptions) {
@@ -221,6 +210,23 @@ public class LDAPTestUtils {
                     GroupMapperConfig.PRESERVE_GROUP_INHERITANCE, "true",
                     GroupMapperConfig.MODE, mode.toString(),
                     GroupMapperConfig.LDAP_GROUPS_PATH, "/");
+            updateGroupMapperConfigOptions(mapperModel, otherConfigOptions);
+            realm.addComponentModel(mapperModel);
+        }
+    }
+
+    public static void addOrUpdateRoleMapper(RealmModel realm, ComponentModel providerModel, LDAPGroupMapperMode mode, String... otherConfigOptions) {
+        ComponentModel mapperModel = getSubcomponentByName(realm, providerModel, "rolesMapper");
+        if (mapperModel != null) {
+            mapperModel.getConfig().putSingle(GroupMapperConfig.MODE, mode.toString());
+            updateGroupMapperConfigOptions(mapperModel, otherConfigOptions);
+            realm.updateComponent(mapperModel);
+        } else {
+            String baseDn = providerModel.getConfig().getFirst(LDAPConstants.BASE_DN);
+            mapperModel = KeycloakModelUtils.createComponentModel("rolesMapper", providerModel.getId(), RoleLDAPStorageMapperFactory.PROVIDER_ID, LDAPStorageMapper.class.getName(),
+                    RoleMapperConfig.ROLES_DN, "ou=Groups," + baseDn,
+                    RoleMapperConfig.USE_REALM_ROLES_MAPPING, "true",
+                    GroupMapperConfig.MODE, mode.toString());
             updateGroupMapperConfigOptions(mapperModel, otherConfigOptions);
             realm.addComponentModel(mapperModel);
         }
@@ -286,7 +292,13 @@ public class LDAPTestUtils {
     public static void removeAllLDAPGroups(KeycloakSession session, RealmModel appRealm, ComponentModel ldapModel, String mapperName) {
         ComponentModel mapperModel = getSubcomponentByName(appRealm, ldapModel, mapperName);
         LDAPStorageProvider ldapProvider = LDAPTestUtils.getLdapProvider(session, ldapModel);
-        try (LDAPQuery roleQuery = getGroupMapper(mapperModel, ldapProvider, appRealm).createGroupQuery(false)) {
+        LDAPQuery query = null;
+        if (GroupLDAPStorageMapperFactory.PROVIDER_ID.equals(mapperModel.getProviderId())) {
+            query = getGroupMapper(mapperModel, ldapProvider, appRealm).createGroupQuery(false);
+        } else {
+            query = getRoleMapper(mapperModel, ldapProvider, appRealm).createRoleQuery(false);
+        }
+        try (LDAPQuery roleQuery = query) {
             List<LDAPObject> ldapRoles = roleQuery.getResultList();
             for (LDAPObject ldapRole : ldapRoles) {
                 ldapProvider.getLdapIdentityStore().remove(ldapRole);
@@ -301,7 +313,11 @@ public class LDAPTestUtils {
     }
 
     public static LDAPObject createLDAPGroup(KeycloakSession session, RealmModel appRealm, ComponentModel ldapModel, String groupName, String... additionalAttrs) {
-        ComponentModel mapperModel = getSubcomponentByName(appRealm, ldapModel, "groupsMapper");
+        return createLDAPGroup("groupsMapper", session, appRealm, ldapModel, groupName, additionalAttrs);
+    }
+
+    public static LDAPObject createLDAPGroup(String mapperName, KeycloakSession session, RealmModel appRealm, ComponentModel ldapModel, String groupName, String... additionalAttrs) {
+        ComponentModel mapperModel = getSubcomponentByName(appRealm, ldapModel, mapperName);
         LDAPStorageProvider ldapProvider = LDAPTestUtils.getLdapProvider(session, ldapModel);
 
         Map<String, Set<String>> additAttrs = new HashMap<>();
@@ -311,7 +327,11 @@ public class LDAPTestUtils {
             additAttrs.put(attrName, Collections.singleton(attrValue));
         }
 
-        return getGroupMapper(mapperModel, ldapProvider, appRealm).createLDAPGroup(groupName, additAttrs);
+        if (GroupLDAPStorageMapperFactory.PROVIDER_ID.equals(mapperModel.getProviderId())) {
+            return getGroupMapper(mapperModel, ldapProvider, appRealm).createLDAPGroup(groupName, additAttrs);
+        } else {
+            return getRoleMapper(mapperModel, ldapProvider, appRealm).createLDAPRole(groupName);
+        }
     }
 
     public static LDAPObject updateLDAPGroup(KeycloakSession session, RealmModel appRealm, ComponentModel ldapModel, LDAPObject ldapObject) {

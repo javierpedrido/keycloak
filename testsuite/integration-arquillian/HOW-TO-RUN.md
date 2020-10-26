@@ -11,6 +11,38 @@ It's recommended to build the workspace including distribution.
     cd distribution
     mvn clean install
 
+### Running tests in the development mode (Keycloak on embedded undertow)
+
+After build sources and distribution, it is possible to run the base testsuite
+
+    mvn -f testsuite/integration-arquillian/pom.xml clean install
+
+Running single test can be achieved for example like this
+
+    mvn -f testsuite/integration-arquillian/pom.xml clean install -Dtest=LoginTest
+
+By default, the development setup is used with the Keycloak server deployed on
+embedded undertow server. That setup doesn't even require to build the distribution or re-build
+the distribution after doing changes in the code.
+
+For example when you do some fix in some class in the `services` module, you can re-build just that module
+
+    mvn -f services/pom.xml clean install
+
+And then re-run the LoginTest (or any other test you wish) and the changes should be applied when running the tests.
+
+If you use Intellij Idea, you don't even need to re-build anything with the maven. After doing any
+change in the codebase, the change is immediately effective when running the test with Junit runner. 
+
+### Running tests in the production mode (Keycloak on Wildfly)
+
+For the "production" testing, it is possible to run the Keycloak server deployed on real Wildfly server.
+This can be achieved by add the `auth-server-wildfly` profile when running the testsuite.
+
+    mvn -f testsuite/integration-arquillian/pom.xml -Pauth-server-wildfly clean install
+
+Unlike the "development" setup described above, this requires re-build the whole distribution
+after doing any change in the code.
 
 ## Debugging - tips & tricks
 
@@ -652,12 +684,24 @@ After you build the distribution, you run this command to setup servers and run 
     
 ### Cluster tests with Keycloak on Quarkus
 
+Make sure the `testsuite/integration-arquillian/servers/auth-server/quarkus` module was built as follows:
+
+    mvn -f testsuite/integration-arquillian/servers/auth-server/quarkus/pom.xml clean install \
+         -Pauth-server-cluster-quarkus
+
 Run tests using the `auth-server-cluster-quarkus` profile:
 
      mvn -f testsuite/integration-arquillian/tests/base/pom.xml clean install \
      -Pauth-server-cluster-quarkus \
      -Dsession.cache.owners=2  \
      -Dtest=AuthenticationSessionFailoverClusterTest
+     
+Alternatively, you can perform both steps using the following command:
+
+    mvn -f testsuite/integration-arquillian/pom.xml clean install \
+    -Pauth-server-cluster-quarkus \
+    -Dsession.cache.owners=2 \
+    -Dtest=AuthenticationSessionFailoverClusterTest
      
 ---
 **NOTE**
@@ -778,7 +822,7 @@ By default JBoss-based containers use TCP-based h2 database. It can be configure
 
 b1) For **Undertow** Keycloak backend containers, you can run the tests using the following command (adjust the test specification according to your needs):
 
-  `mvn -Pcache-server-infinispan,auth-servers-crossdc-undertow -Dtest=*.crossdc.* -pl testsuite/integration-arquillian/tests/base clean install`
+  `mvn -Pcache-server-infinispan,auth-servers-crossdc-undertow -Dtest=org.keycloak.testsuite.crossdc.**.*Test -pl testsuite/integration-arquillian/tests/base clean install`
 
 *note: 'cache-server-infinispan' can be replaced by 'cache-server-jdg'*
 
@@ -788,7 +832,7 @@ b1) For **Undertow** Keycloak backend containers, you can run the tests using th
 
 b2) For **JBoss-based** Keycloak backend containers, you can run the tests like this:
 
-  `mvn -Pcache-server-infinispan,auth-servers-crossdc-jboss,auth-server-wildfly -Dtest=*.crossdc.* -pl testsuite/integration-arquillian/tests/base clean install`
+  `mvn -Pcache-server-infinispan,auth-servers-crossdc-jboss,auth-server-wildfly -Dtest=org.keycloak.testsuite.crossdc.**.*Test -pl testsuite/integration-arquillian/tests/base clean install`
 
 *note: 'cache-server-infinispan' can be replaced by 'cache-server-jdg'*
 
@@ -797,7 +841,7 @@ b2) For **JBoss-based** Keycloak backend containers, you can run the tests like 
 **note**:
 For **JBoss-based** Keycloak backend containers on real DB, the previous commands from (a2) and (b2) can be "squashed" into one. E.g.:
 
-  `mvn -f testsuite/integration-arquillian -Dtest=*.crossdc.* -Pcache-server-infinispan,auth-servers-crossdc-jboss,auth-server-wildfly,jpa,db-mariadb clean install`
+  `mvn -f testsuite/integration-arquillian -Dtest=org.keycloak.testsuite.crossdc.**.*Test -Pcache-server-infinispan,auth-servers-crossdc-jboss,auth-server-wildfly,jpa,db-mariadb clean install`
 
 
 #### Run Cross-DC Tests from Intellij IDEA
@@ -1000,3 +1044,10 @@ because this is not UI testing). For debugging purposes you can override the hea
                       -Pfirefox-strict-cookies \
                       -Dtest=**.javascript.** \
                       -Dauth.server.host=[some_host] -Dauth.server.host2=[some_other_host]
+                      
+**General adapter tests**
+
+    mvn clean install -f testsuite/integration-arquillian/tests/base \
+                       -Pfirefox-strict-cookies \
+                       -Dtest=**.adapter.** \
+                       -Dauth.server.host=[some_host] -Dauth.server.host2=[some_other_host]

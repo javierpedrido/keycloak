@@ -840,7 +840,9 @@ module.controller('RealmIdentityProviderCtrl', function($scope, $filter, $upload
         $scope.signatureAlgorithms = [
             "RSA_SHA1",
             "RSA_SHA256",
+            "RSA_SHA256_MGF1",
             "RSA_SHA512",
+            "RSA_SHA512_MGF1",
             "DSA_SHA1"
         ];
         $scope.xmlKeyNameTranformers = [
@@ -871,8 +873,9 @@ module.controller('RealmIdentityProviderCtrl', function($scope, $filter, $upload
             $scope.identityProvider.config.nameIDPolicyFormat = $scope.nameIdFormats[0].format;
             $scope.identityProvider.config.principalType = $scope.principalTypes[0].type;
             $scope.identityProvider.config.signatureAlgorithm = $scope.signatureAlgorithms[1];
-            $scope.identityProvider.config.samlXmlKeyNameTranformer = $scope.xmlKeyNameTranformers[1];
+            $scope.identityProvider.config.xmlSigKeyInfoKeyNameTransformer = $scope.xmlKeyNameTranformers[1];
         }
+        $scope.identityProvider.config.entityId = $scope.identityProvider.config.entityId || (authUrl + '/realms/' + realm.realm);
     }
 
     $scope.hidePassword = true;
@@ -962,9 +965,14 @@ module.controller('RealmIdentityProviderCtrl', function($scope, $filter, $upload
     };
 
     var setConfig = function(data) {
+    	if (data["enabledFromMetadata"] !== undefined ) {
+             $scope.identityProvider.enabled = data["enabledFromMetadata"] == "true";
+             delete data["enabledFromMetadata"];
+        }
         for (var key in data) {
             $scope.identityProvider.config[key] = data[key];
         }
+       
     }
 
     $scope.uploadFile = function() {
@@ -1120,30 +1128,35 @@ module.controller('RealmIdentityProviderCtrl', function($scope, $filter, $upload
         }
     };
 
-});
-
-module.controller('RealmIdentityProviderExportCtrl', function(realm, identityProvider, $scope, $http, IdentityProviderExport) {
-    $scope.realm = realm;
-    $scope.identityProvider = identityProvider;
-    $scope.download = null;
-    $scope.exported = "";
-    $scope.exportedType = "";
-
-    var url = IdentityProviderExport.url({realm: realm.realm, alias: identityProvider.alias}) ;
-    $http.get(url).then(function(response) {
-        $scope.exportedType = response.headers('Content-Type');
-        $scope.exported = response.data;
-    });
-
-    $scope.download = function() {
-        var suffix = "txt";
-        if ($scope.exportedType == 'application/xml') {
-            suffix = 'xml';
-        } else if ($scope.exportedType == 'application/json') {
-            suffix = 'json';
-        }
-        saveAs(new Blob([$scope.exported], { type: $scope.exportedType }), 'keycloak.' + suffix);
+    if (instance && instance.alias) {
+        try { $scope.authnContextClassRefs = JSON.parse($scope.identityProvider.config.authnContextClassRefs || '[]'); } catch (e) { $scope.authnContextClassRefs = []; }
+        try { $scope.authnContextDeclRefs = JSON.parse($scope.identityProvider.config.authnContextDeclRefs || '[]'); } catch (e) { $scope.authnContextDeclRefs = []; }
+    } else {
+        $scope.authnContextClassRefs = [];
+        $scope.authnContextDeclRefs = [];
     }
+
+    $scope.deleteAuthnContextClassRef = function(index) {
+        $scope.authnContextClassRefs.splice(index, 1);
+        $scope.identityProvider.config.authnContextClassRefs = JSON.stringify($scope.authnContextClassRefs);
+    };
+
+    $scope.addAuthnContextClassRef = function() {
+        $scope.authnContextClassRefs.push($scope.newAuthnContextClassRef);
+        $scope.identityProvider.config.authnContextClassRefs = JSON.stringify($scope.authnContextClassRefs);
+        $scope.newAuthnContextClassRef = "";
+    };
+
+    $scope.deleteAuthnContextDeclRef = function(index) {
+        $scope.authnContextDeclRefs.splice(index, 1);
+        $scope.identityProvider.config.authnContextDeclRefs = JSON.stringify($scope.authnContextDeclRefs);
+    };
+
+    $scope.addAuthnContextDeclRef = function() {
+        $scope.authnContextDeclRefs.push($scope.newAuthnContextDeclRef);
+        $scope.identityProvider.config.authnContextDeclRefs = JSON.stringify($scope.authnContextDeclRefs);
+        $scope.newAuthnContextDeclRef = "";
+    };
 });
 
 module.controller('RealmTokenDetailCtrl', function($scope, Realm, realm, $http, $location, $route, Dialog, Notifications, TimeUnit, TimeUnit2, serverInfo) {

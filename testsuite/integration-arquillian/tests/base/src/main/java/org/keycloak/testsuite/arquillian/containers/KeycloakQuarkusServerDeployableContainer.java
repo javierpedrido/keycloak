@@ -105,7 +105,7 @@ public class KeycloakQuarkusServerDeployableContainer implements DeployableConta
     private Process startContainer() throws IOException {
         ProcessBuilder pb = new ProcessBuilder(getProcessCommands());
         File wrkDir = configuration.getProvidersPath().resolve("bin").toFile();
-        ProcessBuilder builder = pb.directory(wrkDir).inheritIO();
+        ProcessBuilder builder = pb.directory(wrkDir).inheritIO().redirectErrorStream(true);
 
         String javaOpts = configuration.getJavaOpts();
 
@@ -118,6 +118,19 @@ public class KeycloakQuarkusServerDeployableContainer implements DeployableConta
         
         if (restart.compareAndSet(false, true)) {
             FileUtils.deleteDirectory(configuration.getProvidersPath().resolve("data").toFile());
+        }
+
+        if (configuration.isReaugmentBeforeStart()) {
+            ProcessBuilder reaugment = new ProcessBuilder("./kc.sh", "config");
+
+            reaugment.directory(wrkDir).inheritIO();
+
+            try {
+                log.infof("Re-building the server with the new configuration");
+                reaugment.start().waitFor(10, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                throw new RuntimeException("Timeout while waiting for re-augmentation", e);
+            }
         }
 
         return builder.start();
@@ -133,14 +146,14 @@ public class KeycloakQuarkusServerDeployableContainer implements DeployableConta
             commands.add(System.getProperty("auth.server.debug.port", "5005"));
         }
 
-        commands.add("-Dquarkus.http.port=" + configuration.getBindHttpPort());
-        commands.add("-Dquarkus.http.ssl-port=" + configuration.getBindHttpsPort());
+        commands.add("--http-port=" + configuration.getBindHttpPort());
+        commands.add("--https-port=" + configuration.getBindHttpsPort());
 
         if (configuration.getRoute() != null) {
             commands.add("-Djboss.node.name=" + configuration.getRoute());
         }
 
-        commands.add("-Dquarkus.profile=" + System.getProperty("auth.server.quarkus.config", "local"));
+        commands.add("--cluster=" + System.getProperty("auth.server.quarkus.cluster.config", "local"));
 
         return commands.toArray(new String[commands.size()]);
     }
@@ -224,7 +237,7 @@ public class KeycloakQuarkusServerDeployableContainer implements DeployableConta
         SSLSocketFactory socketFactory;
 
         try {
-            sslContext = SSLContext.getInstance("SSL");
+            sslContext = SSLContext.getInstance("TLS");
             sslContext.init(null, trustAllCerts, new java.security.SecureRandom());
             socketFactory = sslContext.getSocketFactory();
         } catch (NoSuchAlgorithmException | KeyManagementException e) {
