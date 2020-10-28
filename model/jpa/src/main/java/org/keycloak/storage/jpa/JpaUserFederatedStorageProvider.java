@@ -37,6 +37,7 @@ import org.keycloak.models.RoleModel;
 import org.keycloak.models.UserConsentModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.jpa.JpaUserCredentialStore;
+import org.keycloak.models.jpa.entities.CredentialEntity;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.storage.StorageId;
 import org.keycloak.storage.UserStorageProvider;
@@ -60,11 +61,9 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Set;
-import java.util.stream.Stream;
 import javax.persistence.LockModeType;
-
-import static org.keycloak.utils.StreamsUtil.closing;
 
 /**
  * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
@@ -381,9 +380,6 @@ public class JpaUserFederatedStorageProvider implements
         if (grantedClientScopeEntities != null) {
             for (FederatedUserConsentClientScopeEntity grantedClientScope : grantedClientScopeEntities) {
                 ClientScopeModel grantedClientScopeModel = realm.getClientScopeById(grantedClientScope.getScopeId());
-                if (grantedClientScopeModel == null) {
-                    grantedClientScopeModel = realm.getClientById(grantedClientScope.getScopeId());
-                }
                 if (grantedClientScopeModel != null) {
                     model.addGrantedClientScope(grantedClientScopeModel);
                 }
@@ -440,10 +436,17 @@ public class JpaUserFederatedStorageProvider implements
     }
 
     @Override
-    public Stream<GroupModel> getGroupsStream(RealmModel realm, String userId) {
+    public Set<GroupModel> getGroups(RealmModel realm, String userId) {
+        Set<GroupModel> set = new HashSet<>();
         TypedQuery<FederatedUserGroupMembershipEntity> query = em.createNamedQuery("feduserGroupMembership", FederatedUserGroupMembershipEntity.class);
         query.setParameter("userId", userId);
-        return closing(query.getResultStream().map(FederatedUserGroupMembershipEntity::getGroupId).map(realm::getGroupById));
+        List<FederatedUserGroupMembershipEntity> results = query.getResultList();
+        if (results.size() == 0) return set;
+        for (FederatedUserGroupMembershipEntity entity : results) {
+            GroupModel group = realm.getGroupById(entity.getGroupId());
+            set.add(group);
+        }
+        return set;
     }
 
     @Override
@@ -482,14 +485,8 @@ public class JpaUserFederatedStorageProvider implements
         TypedQuery<String> query = em.createNamedQuery("fedgroupMembership", String.class)
                 .setParameter("realmId", realm.getId())
                 .setParameter("groupId", group.getId());
-        if (firstResult != -1) {
-            query.setFirstResult(firstResult);
-        }
-        
-        if (max != -1) {
-            query.setMaxResults(max);
-        }
-
+        query.setFirstResult(firstResult);
+        query.setMaxResults(max);
         return query.getResultList();
     }
 
@@ -550,10 +547,17 @@ public class JpaUserFederatedStorageProvider implements
     }
 
     @Override
-    public Stream<RoleModel> getRoleMappingsStream(RealmModel realm, String userId) {
+    public Set<RoleModel> getRoleMappings(RealmModel realm, String userId) {
+        Set<RoleModel> set = new HashSet<>();
         TypedQuery<FederatedUserRoleMappingEntity> query = em.createNamedQuery("feduserRoleMappings", FederatedUserRoleMappingEntity.class);
         query.setParameter("userId", userId);
-        return closing(query.getResultStream().map(FederatedUserRoleMappingEntity::getRoleId).map(realm::getRoleById));
+        List<FederatedUserRoleMappingEntity> results = query.getResultList();
+        if (results.size() == 0) return set;
+        for (FederatedUserRoleMappingEntity entity : results) {
+            RoleModel role = realm.getRoleById(entity.getRoleId());
+            set.add(role);
+        }
+        return set;
     }
 
     @Override

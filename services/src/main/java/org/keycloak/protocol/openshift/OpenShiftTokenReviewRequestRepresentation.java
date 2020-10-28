@@ -62,14 +62,10 @@ public class OpenShiftTokenReviewRequestRepresentation implements Serializable {
         this.spec = spec;
     }
 
-    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Spec implements Serializable {
 
         @JsonProperty("token")
         private String token;
-
-        @JsonProperty("audiences")
-        private String[] audiences;
 
         public String getToken() {
             return token;
@@ -79,13 +75,6 @@ public class OpenShiftTokenReviewRequestRepresentation implements Serializable {
             this.token = token;
         }
 
-        public String[] getAudiences() {
-            return audiences;
-        }
-
-        public void setAudiences(String[] audiences) {
-            this.audiences = audiences;
-        }
     }
 
 }

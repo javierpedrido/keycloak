@@ -49,7 +49,6 @@ public class HardcodedClientStorageProviderFactory implements ClientStorageProvi
 
     public static final String REDIRECT_URI = "redirect_uri";
     public static final String CONSENT = "consent";
-    public static final String DELAYED_SEARCH = "delayed_search";
 
     static {
         CONFIG_PROPERTIES = ProviderConfigurationBuilder.create()
@@ -70,12 +69,6 @@ public class HardcodedClientStorageProviderFactory implements ClientStorageProvi
                 .label("Consent Required")
                 .helpText("Is consent required")
                 .defaultValue("false")
-                .add()
-                .property().name(DELAYED_SEARCH)
-                .type(ProviderConfigProperty.BOOLEAN_TYPE)
-                .label("Delayes provider by 5s.")
-                .helpText("If true it delayes search for clients within the provider by 5s.")
-                .defaultValue(false)
                 .add()
                 .build();
     }

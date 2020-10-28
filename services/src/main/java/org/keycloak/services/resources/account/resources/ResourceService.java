@@ -56,7 +56,7 @@ public class ResourceService extends AbstractResourceService {
             Auth auth, HttpRequest request) {
         super(session, user, auth, request);
         this.resource = resource;
-        this.resourceServer = provider.getStoreFactory().getResourceServerStore().findById(resource.getResourceServer());
+        this.resourceServer = resource.getResourceServer();
     }
 
     /**
@@ -66,8 +66,8 @@ public class ResourceService extends AbstractResourceService {
      */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    public Resource getResource() {
-        return new Resource(resource, provider);
+    public Response getResource() {
+        return cors(Response.ok(new Resource(resource, provider)));
     }
 
     /**
@@ -78,7 +78,7 @@ public class ResourceService extends AbstractResourceService {
     @GET
     @Path("permissions")
     @Produces(MediaType.APPLICATION_JSON)
-    public Collection<Permission> toPermissions() {
+    public Response toPermissions() {
         Map<String, String> filters = new HashMap<>();
 
         filters.put(PermissionTicket.OWNER, user.getId());
@@ -92,7 +92,7 @@ public class ResourceService extends AbstractResourceService {
             permissions = resources.iterator().next().getPermissions();
         }
 
-        return permissions;
+        return cors(Response.ok(permissions));
     }
 
     @GET
@@ -101,9 +101,9 @@ public class ResourceService extends AbstractResourceService {
     public Response user(@QueryParam("value") String value) {
         try {
             final UserModel user = getUser(value);
-            return Response.ok(toRepresentation(provider.getKeycloakSession(), provider.getRealm(), user)).build();
+            return cors(Response.ok(toRepresentation(provider.getKeycloakSession(), provider.getRealm(), user)));
         } catch (NotFoundException e) {
-            return Response.noContent().build();
+            return cors(Response.noContent());
         }
     }
 
@@ -122,6 +122,7 @@ public class ResourceService extends AbstractResourceService {
             throw new BadRequestException("invalid_permissions");    
         }
         
+        ResourceServer resourceServer = resource.getResourceServer();
         Map<String, String> filters = new HashMap<>();
 
         filters.put(PermissionTicket.RESOURCE, resource.getId());
@@ -131,7 +132,7 @@ public class ResourceService extends AbstractResourceService {
 
             filters.put(PermissionTicket.REQUESTER, user.getId());
 
-            List<PermissionTicket> tickets = ticketStore.find(filters, resource.getResourceServer(), -1, -1);
+            List<PermissionTicket> tickets = ticketStore.find(filters, resource.getResourceServer().getId(), -1, -1);
 
             // grants all requested permissions
             if (tickets.isEmpty()) {
@@ -172,7 +173,7 @@ public class ResourceService extends AbstractResourceService {
             }
         }
 
-        return Response.noContent().build();
+        return cors(Response.noContent());
     }
 
     /**
@@ -183,7 +184,7 @@ public class ResourceService extends AbstractResourceService {
     @GET
     @Path("permissions/requests")
     @Produces(MediaType.APPLICATION_JSON)
-    public Collection<Permission> getPermissionRequests() {
+    public Response getPermissionRequests() {
         Map<String, String> filters = new HashMap<>();
 
         filters.put(PermissionTicket.OWNER, user.getId());
@@ -196,7 +197,7 @@ public class ResourceService extends AbstractResourceService {
             requests.computeIfAbsent(ticket.getRequester(), requester -> new Permission(ticket, provider)).addScope(ticket.getScope().getName());
         }
         
-        return requests.values();
+        return cors(Response.ok(requests.values()));
     }
 
     private void grantPermission(UserModel user, String scopeId) {

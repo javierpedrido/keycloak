@@ -36,7 +36,9 @@ public class MigrateTo3_1_0 implements Migration {
 
     @Override
     public void migrate(KeycloakSession session) {
-        session.realms().getRealmsStream().forEach(this::migrateRealm);
+        for (RealmModel realm : session.realms().getRealms()) {
+            migrateRealm(realm);
+        }
     }
 
     protected void migrateRealm(RealmModel realm) {

@@ -89,7 +89,7 @@ public class UserSynchronizer implements Synchronizer<UserRemovedEvent> {
         RealmModel realm = event.getRealm();
         UserModel userModel = event.getUser();
 
-        realm.getClientsStream().forEach(clientModel -> {
+        realm.getClients().forEach(clientModel -> {
             ResourceServer resourceServer = resourceServerStore.findById(clientModel.getId());
 
             if (resourceServer != null) {

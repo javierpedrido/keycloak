@@ -18,6 +18,7 @@
 package org.keycloak.utils;
 
 import java.util.Map;
+import java.util.Set;
 
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.ClientSessionContext;
@@ -101,9 +102,10 @@ public class RoleResolveUtil {
         AccessToken token = session.getAttribute(resolvedRolesAttrName, AccessToken.class);
 
         if (token == null) {
-            AccessToken finalToken = new AccessToken();
-            clientSessionCtx.getRolesStream().forEach(role -> addToToken(finalToken, role));
-            token = finalToken;
+            token = new AccessToken();
+            for (RoleModel role : clientSessionCtx.getRoles()) {
+                addToToken(token, role);
+            }
             session.setAttribute(resolvedRolesAttrName, token);
         }
 

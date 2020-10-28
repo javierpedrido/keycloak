@@ -49,7 +49,7 @@ class PageNavigation extends React.Component<PageNavProps, PageNavState> {
     public render(): React.ReactNode {
         const activeItem: PageDef = this.findActiveItem();
         return (
-            <Nav>
+            <Nav aria-label="Nav">
                 <NavList>
                     {makeNavItems(activeItem)}
                 </NavList>

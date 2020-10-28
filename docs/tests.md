@@ -1,11 +1,6 @@
 Executing tests
 ===============
 
-Running the tests
------------------
-
-It is recommended to take a look at [../testsuite/integration-arquillian/HOW-TO-RUN.md](../testsuite/integration-arquillian/HOW-TO-RUN.md).
-
 Browser
 -------
 

@@ -27,7 +27,6 @@ import org.keycloak.events.admin.OperationType;
 import org.keycloak.events.admin.ResourceType;
 import org.keycloak.models.AccountRoles;
 import org.keycloak.models.Constants;
-import org.keycloak.protocol.oidc.OIDCAdvancedConfigWrapper;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.protocol.oidc.OIDCLoginProtocolFactory;
 import org.keycloak.representations.adapters.action.GlobalRequestResult;
@@ -125,10 +124,6 @@ public class ClientTest extends AbstractAdminTest {
         rep.setRootUrl("");
         rep.setBaseUrl("/valid");
         createClientExpectingSuccessfulClientCreation(rep);
-
-        rep.setBaseUrl(null);
-        OIDCAdvancedConfigWrapper.fromClientRepresentation(rep).setBackchannelLogoutUrl("invalid");
-        createClientExpectingValidationError(rep, "Invalid URL in backchannelLogoutUrl");
     }
 
     @Test
@@ -157,10 +152,6 @@ public class ClientTest extends AbstractAdminTest {
         rep.setRootUrl("");
         rep.setBaseUrl("/valid");
         updateClientExpectingSuccessfulClientUpdate(rep, "", "/valid");
-
-        rep.setBaseUrl(null);
-        OIDCAdvancedConfigWrapper.fromClientRepresentation(rep).setBackchannelLogoutUrl("invalid");
-        updateClientExpectingValidationError(rep, "Invalid URL in backchannelLogoutUrl");
     }
 
     private void createClientExpectingValidationError(ClientRepresentation rep, String expectedError) {

@@ -18,7 +18,6 @@ package org.keycloak.headers;
 
 import org.jboss.logging.Logger;
 import org.keycloak.models.BrowserSecurityHeaders;
-import org.keycloak.models.ContentSecurityPolicyBuilder;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 
@@ -27,10 +26,7 @@ import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerResponseContext;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
-import java.util.Collections;
 import java.util.Map;
-
-import static org.keycloak.models.BrowserSecurityHeaders.CONTENT_SECURITY_POLICY;
 
 public class DefaultSecurityHeadersProvider implements SecurityHeadersProvider {
 
@@ -48,7 +44,7 @@ public class DefaultSecurityHeadersProvider implements SecurityHeadersProvider {
         if (realm != null) {
             headerValues = realm.getBrowserSecurityHeaders();
         } else {
-            headerValues = Collections.emptyMap();
+            headerValues = BrowserSecurityHeaders.defaultHeaders;
         }
     }
 
@@ -85,31 +81,27 @@ public class DefaultSecurityHeadersProvider implements SecurityHeadersProvider {
     }
 
     private void addGenericHeaders(MultivaluedMap<String, Object> headers) {
-        addHeader(BrowserSecurityHeaders.STRICT_TRANSPORT_SECURITY, headers);
-        addHeader(BrowserSecurityHeaders.X_CONTENT_TYPE_OPTIONS, headers);
-        addHeader(BrowserSecurityHeaders.X_XSS_PROTECTION, headers);
-        addHeader(BrowserSecurityHeaders.REFERRER_POLICY, headers);
+        addHeader(BrowserSecurityHeaders.STRICT_TRANSPORT_SECURITY_KEY, headers);
+        addHeader(BrowserSecurityHeaders.X_CONTENT_TYPE_OPTIONS_KEY, headers);
+        addHeader(BrowserSecurityHeaders.X_XSS_PROTECTION_KEY, headers);
     }
 
     private void addRestHeaders(MultivaluedMap<String, Object> headers) {
-        addHeader(BrowserSecurityHeaders.STRICT_TRANSPORT_SECURITY, headers);
-        addHeader(BrowserSecurityHeaders.X_FRAME_OPTIONS, headers);
-        addHeader(BrowserSecurityHeaders.X_CONTENT_TYPE_OPTIONS, headers);
-        addHeader(BrowserSecurityHeaders.X_XSS_PROTECTION, headers);
-        addHeader(BrowserSecurityHeaders.REFERRER_POLICY, headers);
+        addHeader(BrowserSecurityHeaders.STRICT_TRANSPORT_SECURITY_KEY, headers);
+        addHeader(BrowserSecurityHeaders.X_FRAME_OPTIONS_KEY, headers);
+        addHeader(BrowserSecurityHeaders.X_CONTENT_TYPE_OPTIONS_KEY, headers);
+        addHeader(BrowserSecurityHeaders.X_XSS_PROTECTION_KEY, headers);
     }
 
     private void addHtmlHeaders(MultivaluedMap<String, Object> headers) {
-        for (BrowserSecurityHeaders header : BrowserSecurityHeaders.values()) {
-            addHeader(header, headers);
-        }
+        BrowserSecurityHeaders.headerAttributeMap.keySet().forEach(k -> addHeader(k, headers));
 
         // TODO This will be refactored as part of introducing a more strict CSP header
         if (options != null) {
-            ContentSecurityPolicyBuilder csp = ContentSecurityPolicyBuilder.create();
+            BrowserSecurityHeaders.ContentSecurityPolicyBuilder csp = BrowserSecurityHeaders.ContentSecurityPolicyBuilder.create();
 
             if (options.isAllowAnyFrameAncestor()) {
-                headers.remove(BrowserSecurityHeaders.X_FRAME_OPTIONS.getHeaderName());
+                headers.remove(BrowserSecurityHeaders.X_FRAME_OPTIONS);
 
                 csp.frameAncestors(null);
             }
@@ -119,16 +111,17 @@ public class DefaultSecurityHeadersProvider implements SecurityHeadersProvider {
                 csp.frameSrc(allowedFrameSrc);
             }
 
-            if (CONTENT_SECURITY_POLICY.getDefaultValue().equals(headers.getFirst(CONTENT_SECURITY_POLICY.getHeaderName()))) {
-                headers.putSingle(CONTENT_SECURITY_POLICY.getHeaderName(), csp.build());
+            if (BrowserSecurityHeaders.CONTENT_SECURITY_POLICY_DEFAULT.equals(headers.getFirst(BrowserSecurityHeaders.CONTENT_SECURITY_POLICY))) {
+                headers.putSingle(BrowserSecurityHeaders.CONTENT_SECURITY_POLICY, csp.build());
             }
         }
     }
 
-    private void addHeader(BrowserSecurityHeaders header, MultivaluedMap<String, Object> headers) {
-        String value = headerValues.getOrDefault(header.getKey(), header.getDefaultValue());
+    private void addHeader(String key, MultivaluedMap<String, Object> headers) {
+        String header = BrowserSecurityHeaders.headerAttributeMap.get(key);
+        String value = headerValues.get(key);
         if (value != null && !value.isEmpty()) {
-            headers.putSingle(header.getHeaderName(), value);
+            headers.putSingle(header, value);
         }
     }
 

@@ -41,7 +41,8 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.util.stream.Stream;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Base resource class for managing a realm's client scopes.
@@ -73,12 +74,23 @@ public class ClientScopesResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @NoCache
-    public Stream<ClientScopeRepresentation> getClientScopes() {
+    public List<ClientScopeRepresentation> getClientScopes() {
         auth.clients().requireListClientScopes();
 
-        return auth.clients().canViewClientScopes() ?
-                realm.getClientScopesStream().map(ModelToRepresentation::toRepresentation) :
-                Stream.empty();
+        List<ClientScopeRepresentation> rep = new ArrayList<>();
+        List<ClientScopeModel> clientModels = realm.getClientScopes();
+
+        boolean viewable = auth.clients().canViewClientScopes();
+        for (ClientScopeModel clientModel : clientModels) {
+            if (viewable) rep.add(ModelToRepresentation.toRepresentation(clientModel));
+            else {
+                ClientScopeRepresentation tempRep = new ClientScopeRepresentation();
+                tempRep.setName(clientModel.getName());
+                tempRep.setId(clientModel.getId());
+                tempRep.setProtocol(clientModel.getProtocol());
+            }
+        }
+        return rep;
     }
 
     /**

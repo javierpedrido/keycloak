@@ -36,9 +36,7 @@ public class TLSUtils {
          }
 
          KeyStore keystore = KeyStore.getInstance("jks");
-         try (FileInputStream is = new FileInputStream(keystorePath)) {
-            keystore.load(is, "secret".toCharArray());
-         }
+         keystore.load(new FileInputStream(keystorePath), "secret".toCharArray());
          KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
          keyManagerFactory.init(keystore, "secret".toCharArray());
          KeyManager[] keyManagers = keyManagerFactory.getKeyManagers();
@@ -51,9 +49,7 @@ public class TLSUtils {
          // Essentially, this is REQUEST CLIENT AUTH behavior. It doesn't fail if the client doesn't have a cert.
          // However it will challenge him to send it.
          KeyStore truststore = KeyStore.getInstance("jks");
-         try (FileInputStream is = new FileInputStream(truststorePath)) {
-            truststore.load(is, "secret".toCharArray());
-         }
+         truststore.load(new FileInputStream(truststorePath), "secret".toCharArray());
          TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
          trustManagerFactory.init(truststore);
          TrustManager[] trustManagers = new TrustManager[trustManagerFactory.getTrustManagers().length + 1];

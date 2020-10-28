@@ -395,7 +395,7 @@ public class LoginActionsService {
             throws UriBuilderException, IllegalArgumentException {
         AuthenticationSessionModel authSession;
 
-        ClientModel client = session.clients().getClientByClientId(realm, clientID);
+        ClientModel client = session.realms().getClientByClientId(clientID, realm);
         String redirectUri;
 
         if (client == null) {

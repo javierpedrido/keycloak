@@ -1,7 +1,7 @@
 import * as React from 'react';
 
 import { Select, SelectOption, SelectVariant, SelectOptionObject } from '@patternfly/react-core';
-import { Scope } from './resource-model';
+import { Scope } from './MyResourcesPage';
 
 interface PermissionSelectState {
   selected: ScopeValue[];

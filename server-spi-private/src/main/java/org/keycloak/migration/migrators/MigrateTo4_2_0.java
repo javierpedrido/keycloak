@@ -19,7 +19,8 @@ package org.keycloak.migration.migrators;
 
 import static java.util.Comparator.comparing;
 
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.jboss.logging.Logger;
 import org.keycloak.migration.ModelVersion;
@@ -44,27 +45,29 @@ public class MigrateTo4_2_0 implements Migration {
 
     @Override
     public void migrate(KeycloakSession session) {
-        session.realms().getRealmsStream().forEach(this::migrateRealm);
+        session.realms().getRealms().stream().forEach(r -> {
+            migrateRealm(session, r, false);
+        });
     }
 
     @Override
     public void migrateImport(KeycloakSession session, RealmModel realm, RealmRepresentation rep, boolean skipUserDependent) {
-        migrateRealm(realm);
+        migrateRealm(session, realm, true);
     }
 
-    protected void migrateRealm(RealmModel realm) {
+    protected void migrateRealm(KeycloakSession session, RealmModel realm, boolean json) {
         // Set default priority of required actions in alphabetical order
-        AtomicInteger priority = new AtomicInteger(10);
-        realm.getRequiredActionProvidersStream()
-                .sorted(comparing(RequiredActionProviderModel::getName))
-                .forEachOrdered(model -> {
-                    LOG.debugf("Setting priority '%d' for required action '%s' in realm '%s'", priority.get(), model.getAlias(),
-                            realm.getName());
-                    model.setPriority(priority.get());
-                    priority.addAndGet(10);
+        List<RequiredActionProviderModel> actions = realm.getRequiredActionProviders().stream()
+                .sorted(comparing(RequiredActionProviderModel::getName)).collect(Collectors.toList());
+        int priority = 10;
+        for (RequiredActionProviderModel model : actions) {
+            LOG.debugf("Setting priority '%d' for required action '%s' in realm '%s'", priority, model.getAlias(),
+                    realm.getName());
+            model.setPriority(priority);
+            priority += 10;
 
-                    // Save
-                    realm.updateRequiredActionProvider(model);
-                });
+            // Save
+            realm.updateRequiredActionProvider(model);
+        }
     }
 }

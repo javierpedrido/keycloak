@@ -23,6 +23,7 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.ModelDuplicateException;
 import org.keycloak.models.ProtocolMapperModel;
 import org.keycloak.models.RealmModel;
+import org.keycloak.models.RoleContainerModel;
 import org.keycloak.models.RoleModel;
 import org.keycloak.models.jpa.entities.ClientAttributeEntity;
 import org.keycloak.models.jpa.entities.ClientEntity;
@@ -30,7 +31,6 @@ import org.keycloak.models.jpa.entities.ClientScopeClientMappingEntity;
 import org.keycloak.models.jpa.entities.ProtocolMapperEntity;
 import org.keycloak.models.jpa.entities.RoleEntity;
 import org.keycloak.models.utils.KeycloakModelUtils;
-import org.keycloak.models.utils.RoleUtils;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 
 import javax.persistence.EntityManager;
@@ -46,7 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Stream;
+import java.util.stream.Collectors;
 
 /**
  * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
@@ -238,16 +238,29 @@ public class ClientAdapter implements ClientModel, JpaModel<ClientEntity> {
     }
 
     @Override
-    public Stream<RoleModel> getRealmScopeMappingsStream() {
-        return getScopeMappingsStream().filter(r -> RoleUtils.isRealmRole(r, realm));
+    public Set<RoleModel> getRealmScopeMappings() {
+        Set<RoleModel> roleMappings = getScopeMappings();
+
+        Set<RoleModel> appRoles = new HashSet<>();
+        for (RoleModel role : roleMappings) {
+            RoleContainerModel container = role.getContainer();
+            if (container instanceof RealmModel) {
+                if (((RealmModel) container).getId().equals(realm.getId())) {
+                    appRoles.add(role);
+                }
+            }
+        }
+
+        return appRoles;
     }
 
     @Override
-    public Stream<RoleModel> getScopeMappingsStream() {
+    public Set<RoleModel> getScopeMappings() {
         return getEntity().getScopeMapping().stream()
                 .map(RoleEntity::getId)
                 .map(realm::getRoleById)
-                .filter(Objects::nonNull);
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
     }
 
     @Override
@@ -640,54 +653,66 @@ public class ClientAdapter implements ClientModel, JpaModel<ClientEntity> {
 
     @Override
     public RoleModel getRole(String name) {
-        return session.roles().getClientRole(this, name);
+        return session.realms().getClientRole(realm, this, name);
     }
 
     @Override
     public RoleModel addRole(String name) {
-        return session.roles().addClientRole(this, name);
+        return session.realms().addClientRole(realm, this, name);
     }
 
     @Override
     public RoleModel addRole(String id, String name) {
-        return session.roles().addClientRole(this, id, name);
+        return session.realms().addClientRole(realm, this, id, name);
     }
 
     @Override
     public boolean removeRole(RoleModel roleModel) {
-        return session.roles().removeRole(roleModel);
+        return session.realms().removeRole(realm, roleModel);
     }
 
     @Override
-    public Stream<RoleModel> getRolesStream() {
-        return session.roles().getClientRolesStream(this, null, null);
+    public Set<RoleModel> getRoles() {
+        return session.realms().getClientRoles(realm, this);
     }
-
+    
     @Override
-    public Stream<RoleModel> getRolesStream(Integer first, Integer max) {
-        return session.roles().getClientRolesStream(this, first, max);
+    public Set<RoleModel> getRoles(Integer first, Integer max) {
+        return session.realms().getClientRoles(realm, this, first, max);
     }
-
+    
     @Override
-    public Stream<RoleModel> searchForRolesStream(String search, Integer first, Integer max) {
-        return session.roles().searchForClientRolesStream(this, search, first, max);
+    public Set<RoleModel> searchForRoles(String search, Integer first, Integer max) {
+        return session.realms().searchForClientRoles(realm, this, search, first, max);
     }
 
     @Override
     public boolean hasScope(RoleModel role) {
         if (isFullScopeAllowed()) return true;
+        Set<RoleModel> roles = getScopeMappings();
+        if (roles.contains(role)) return true;
 
-        if (RoleUtils.hasRole(getScopeMappingsStream(), role))
-            return true;
+        for (RoleModel mapping : roles) {
+            if (mapping.hasRole(role)) return true;
+        }
+        roles = getRoles();
+        if (roles.contains(role)) return true;
 
-        return RoleUtils.hasRole(getRolesStream(), role);
+        for (RoleModel mapping : roles) {
+            if (mapping.hasRole(role)) return true;
+        }
+        return false;
     }
 
     @Override
-    public Stream<String> getDefaultRolesStream() {
+    public List<String> getDefaultRoles() {
         Collection<RoleEntity> entities = entity.getDefaultRoles();
-        if (entities == null) return Stream.empty();
-        return entities.stream().map(RoleEntity::getName);
+        List<String> roles = new ArrayList<String>();
+        if (entities == null) return roles;
+        for (RoleEntity entity : entities) {
+            roles.add(entity.getName());
+        }
+        return roles;
     }
 
     @Override

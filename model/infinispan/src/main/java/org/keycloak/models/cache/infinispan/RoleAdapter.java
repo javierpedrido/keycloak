@@ -26,13 +26,12 @@ import org.keycloak.models.cache.infinispan.entities.CachedRole;
 import org.keycloak.models.utils.KeycloakModelUtils;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
@@ -71,7 +70,7 @@ public class RoleAdapter implements RoleModel {
     protected boolean isUpdated() {
         if (updated != null) return true;
         if (!invalidated) return false;
-        updated = cacheSession.getRoleDelegate().getRoleById(realm, cached.getId());
+        updated = cacheSession.getRealmDelegate().getRoleById(cached.getId(), realm);
         if (updated == null) throw new IllegalStateException("Not found in database");
         return true;
     }
@@ -126,22 +125,21 @@ public class RoleAdapter implements RoleModel {
     }
 
     @Override
-    public Stream<RoleModel> getCompositesStream() {
-        if (isUpdated()) return updated.getCompositesStream();
+    public Set<RoleModel> getComposites() {
+        if (isUpdated()) return updated.getComposites();
 
         if (composites == null) {
             composites = new HashSet<>();
-            composites = cached.getComposites().stream()
-                    .map(id -> {
-                        RoleModel role = realm.getRoleById(id);
-                        if (role == null) {
-                            throw new IllegalStateException("Could not find composite in role " + getName() + ": " + id);
-                        }
-                        return role;
-                    }).collect(Collectors.toSet());
+            for (String id : cached.getComposites()) {
+                RoleModel role = realm.getRoleById(id);
+                if (role == null) {
+                    throw new IllegalStateException("Could not find composite in role " + getName() + ": " + id);
+                }
+                composites.add(role);
+            }
         }
 
-        return composites.stream();
+        return composites;
     }
 
     @Override
@@ -203,16 +201,16 @@ public class RoleAdapter implements RoleModel {
     }
 
     @Override
-    public Stream<String> getAttributeStream(String name) {
+    public List<String> getAttribute(String name) {
         if (updated != null) {
-            return updated.getAttributeStream(name);
+            return updated.getAttribute(name);
         }
 
         List<String> result = cached.getAttributes(modelSupplier).get(name);
         if (result == null) {
-            return Stream.empty();
+            result = Collections.emptyList();
         }
-        return result.stream();
+        return result;
     }
 
     @Override
@@ -225,7 +223,7 @@ public class RoleAdapter implements RoleModel {
     }
 
     private RoleModel getRoleModel() {
-        return cacheSession.getRoleDelegate().getRoleById(realm, cached.getId());
+        return cacheSession.getRealmDelegate().getRoleById(cached.getId(), realm);
     }
 
     @Override

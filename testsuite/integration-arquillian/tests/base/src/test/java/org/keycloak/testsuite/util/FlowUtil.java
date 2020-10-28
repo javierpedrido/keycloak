@@ -11,12 +11,12 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.utils.DefaultAuthenticationFlows;
 import org.keycloak.services.resources.admin.AuthenticationManagementResource;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 public class FlowUtil {
     private RealmModel realm;
@@ -78,10 +78,6 @@ public class FlowUtil {
         return copyFlow(DefaultAuthenticationFlows.FIRST_BROKER_LOGIN_FLOW, newFlowAlias);
     }
 
-    public FlowUtil copyRegistrationFlow(String newFlowAlias) {
-        return copyFlow(DefaultAuthenticationFlows.REGISTRATION_FLOW, newFlowAlias);
-    }
-
     public FlowUtil copyFlow(String original, String newFlowAlias) {
         flowAlias = newFlowAlias;
         AuthenticationFlowModel existingBrowserFlow = realm.getFlowByAlias(original);
@@ -115,7 +111,13 @@ public class FlowUtil {
     }
 
     public FlowUtil clear() {
-        realm.getAuthenticationExecutionsStream(currentFlow.getId()).forEachOrdered(realm::removeAuthenticatorExecution);
+        // Get executions from current flow
+        List<AuthenticationExecutionModel> executions = realm.getAuthenticationExecutions(currentFlow.getId());
+        // Remove all executions
+        for (AuthenticationExecutionModel authExecution : executions) {
+            realm.removeAuthenticatorExecution(authExecution);
+        }
+
         return this;
     }
 
@@ -170,10 +172,6 @@ public class FlowUtil {
         realm.setResetCredentialsFlow(currentFlow);
         return this;
     }
-    public FlowUtil defineAsRegistrationFlow() {
-        realm.setRegistrationFlow(currentFlow);
-        return this;
-    }
 
     public FlowUtil usesInIdentityProvider(String idpAlias) {
         // Setup new FirstBrokerLogin flow to identity provider
@@ -218,10 +216,6 @@ public class FlowUtil {
 
         AuthenticationExecutionModel execution = new AuthenticationExecutionModel();
         execution.setRequirement(requirement);
-        //KEYCLOAK-14161
-        if (flowModel.getProviderId() == "form-flow") {
-            execution.setAuthenticator("registration-page-form");
-        }
         execution.setAuthenticatorFlow(true);
         execution.setPriority(priority);
         execution.setFlowId(flowModel.getId());
@@ -238,7 +232,11 @@ public class FlowUtil {
 
     private List<AuthenticationExecutionModel> getExecutions() {
         if (executions == null) {
-            executions = realm.getAuthenticationExecutionsStream(currentFlow.getId()).collect(Collectors.toList());
+            List<AuthenticationExecutionModel> execs = realm.getAuthenticationExecutions(currentFlow.getId());
+            if (execs == null) {
+                throw new FlowUtilException("Can't get executions of unknown flow " + currentFlow.getId());
+            }
+            executions = new ArrayList<>(execs);
         }
         return executions;
     }

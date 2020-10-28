@@ -22,7 +22,10 @@ import io.quarkus.runtime.StartupEvent;
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
 
+import org.jboss.resteasy.plugins.server.servlet.ResteasyContextParameters;
+import org.jboss.resteasy.spi.ResteasyDeployment;
 import org.keycloak.Config;
+import org.keycloak.common.util.Resteasy;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.KeycloakTransactionManager;
@@ -38,10 +41,7 @@ public class QuarkusLifecycleObserver {
     private static final String KEYCLOAK_ADMIN_PASSWORD_ENV_VAR = "KEYCLOAK_ADMIN_PASSWORD";
 
     void onStartupEvent(@Observes StartupEvent event) {
-        QuarkusPlatform platform = (QuarkusPlatform) Platform.getPlatform();
-        platform.started();
-        QuarkusPlatform.exitOnError();
-        Runnable startupHook = platform.startupHook;
+        Runnable startupHook = ((QuarkusPlatform) Platform.getPlatform()).startupHook;
 
         if (startupHook != null) {
             startupHook.run();

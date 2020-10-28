@@ -35,9 +35,8 @@ import org.keycloak.storage.user.ImportSynchronization;
 import org.keycloak.storage.user.SynchronizationResult;
 import org.keycloak.timer.TimerProvider;
 
-import java.util.Objects;
+import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.stream.Stream;
 
 /**
  * @author <a href="mailto:mposolda@redhat.com">Marek Posolda</a>
@@ -59,16 +58,16 @@ public class UserStorageSyncManager {
 
             @Override
             public void run(KeycloakSession session) {
-                Stream<RealmModel> realms = session.realms().getRealmsWithProviderTypeStream(UserStorageProvider.class);
-                realms.forEach(realm -> {
-                    Stream<UserStorageProviderModel> providers = realm.getUserStorageProvidersStream();
-                    providers.forEachOrdered(provider -> {
+                List<RealmModel> realms = session.realms().getRealmsWithProviderType(UserStorageProvider.class);
+                for (final RealmModel realm : realms) {
+                    List<UserStorageProviderModel> providers = realm.getUserStorageProviders();
+                    for (final UserStorageProviderModel provider : providers) {
                         UserStorageProviderFactory factory = (UserStorageProviderFactory) session.getKeycloakSessionFactory().getProviderFactory(UserStorageProvider.class, provider.getProviderId());
                         if (factory instanceof ImportSynchronization && provider.isImportEnabled()) {
                             refreshPeriodicSyncForProvider(sessionFactory, timer, provider, realm.getId());
                         }
-                    });
-                });
+                    }
+                }
 
                 ClusterProvider clusterProvider = session.getProvider(ClusterProvider.class);
                 clusterProvider.registerListener(USER_STORAGE_TASK_KEY, new UserStorageClusterListener(sessionFactory));
@@ -76,7 +75,7 @@ public class UserStorageSyncManager {
         });
     }
 
-    private static class Holder {
+    private class Holder {
         ExecutionResult<SynchronizationResult> result;
     }
 
@@ -255,18 +254,20 @@ public class UserStorageSyncManager {
             @Override
             public void run(KeycloakSession session) {
                 RealmModel persistentRealm = session.realms().getRealm(realmId);
-                persistentRealm.getUserStorageProvidersStream()
-                        .filter(persistentFedProvider -> Objects.equals(provider.getId(), persistentFedProvider.getId()))
-                        .forEachOrdered(persistentFedProvider -> {
-                            // Update persistent provider in DB
-                            int lastSync = Time.currentTime();
-                            persistentFedProvider.setLastSync(lastSync);
-                            persistentRealm.updateComponent(persistentFedProvider);
+                List<UserStorageProviderModel> persistentFedProviders = persistentRealm.getUserStorageProviders();
+                for (UserStorageProviderModel persistentFedProvider : persistentFedProviders) {
+                    if (provider.getId().equals(persistentFedProvider.getId())) {
+                        // Update persistent provider in DB
+                        int lastSync = Time.currentTime();
+                        persistentFedProvider.setLastSync(lastSync);
+                        persistentRealm.updateComponent(persistentFedProvider);
 
-                            // Update "cached" reference
-                            provider.setLastSync(lastSync);
-                        });
+                        // Update "cached" reference
+                        provider.setLastSync(lastSync);
+                    }
+                }
             }
+
         });
     }
 

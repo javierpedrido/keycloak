@@ -37,7 +37,6 @@ import org.keycloak.timer.TimerProvider;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 import org.keycloak.testsuite.arquillian.annotation.AuthServerContainerExclude.AuthServer;
@@ -138,11 +137,13 @@ public class SyncFederationTest extends AbstractAuthTest {
 
 
     private static final UserStorageProviderModel findDummyProviderModel(RealmModel realm) {
-        return realm.getComponentsStream()
-                .filter(component -> Objects.equals(component.getName(), "test-sync-dummy"))
-                .map(UserStorageProviderModel::new)
-                .findFirst()
-                .orElse(null);
+        for (ComponentModel component : realm.getComponents()) {
+            if ("test-sync-dummy".equals(component.getName())) {
+                return new UserStorageProviderModel(component);
+            }
+        }
+
+        return null;
     }
 
     /**

@@ -17,7 +17,6 @@
 
 package org.keycloak.cluster.infinispan;
 
-
 import java.util.HashSet;
 import java.util.Set;
 
@@ -27,8 +26,6 @@ import org.infinispan.manager.EmbeddedCacheManager;
 import org.infinispan.persistence.remote.configuration.RemoteStoreConfigurationBuilder;
 import org.jboss.logging.Logger;
 import org.junit.Assert;
-import org.junit.Ignore;
-import org.junit.Test;
 import org.keycloak.common.util.Time;
 import org.keycloak.connections.infinispan.InfinispanConnectionProvider;
 import org.keycloak.models.KeycloakSession;
@@ -48,9 +45,7 @@ public class RemoteCacheSessionsLoaderTest {
 
     private static final int COUNT = 10000;
 
-    @Test
-    @Ignore
-    public void testRemoteCache() throws Exception {
+    public static void main(String[] args) throws Exception {
         String cacheName = InfinispanConnectionProvider.USER_SESSION_CACHE_NAME;
         Cache cache1 = createManager(1, cacheName).getCache(cacheName);
         Cache cache2 = cache1.getCacheManager().getCache("local");

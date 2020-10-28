@@ -33,7 +33,9 @@ public class MigrateTo2_0_0 implements Migration {
     }
 
     public void migrate(KeycloakSession session) {
-        session.realms().getRealmsStream().forEach(this::migrateAuthorizationServices);
+        for (RealmModel realm : session.realms().getRealms()) {
+            migrateAuthorizationServices(realm);
+        }
     }
 
     @Override

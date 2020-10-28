@@ -19,7 +19,6 @@ package org.keycloak.forms.account.freemarker.model;
 import org.keycloak.models.RealmModel;
 
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * @author <a href="mailto:gerbermichi@me.com">Michael Gerber</a>
@@ -59,7 +58,7 @@ public class RealmBean {
     }
 
     public Set<String> getSupportedLocales(){
-        return realm.getSupportedLocalesStream().collect(Collectors.toSet());
+        return realm.getSupportedLocales();
     }
 
     public boolean isEditUsernameAllowed() {

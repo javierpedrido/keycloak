@@ -16,12 +16,11 @@
  */
 package org.keycloak.dom.saml.v2.metadata;
 
+import org.w3c.dom.Element;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
-import org.keycloak.dom.saml.v2.mdattr.EntityAttributes;
-import org.w3c.dom.Element;
 
 /**
  * <p>
@@ -89,14 +88,4 @@ public class ExtensionsType {
     public List<Object> getAny() {
         return Collections.unmodifiableList(this.any);
     }
-
-    public EntityAttributes getEntityAttributes() {
-        for (Object o : this.any) {
-            if (o instanceof EntityAttributes) {
-                return (EntityAttributes) o;
-            }
-        }
-        return null;
-    }
-
 }

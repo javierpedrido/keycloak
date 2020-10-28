@@ -39,6 +39,7 @@ import org.keycloak.models.UserModel;
 import org.keycloak.models.UserSessionModel;
 import org.keycloak.models.utils.AuthenticationFlowResolver;
 import org.keycloak.models.utils.FormMessage;
+import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.protocol.LoginProtocol;
 import org.keycloak.protocol.LoginProtocol.Error;
 import org.keycloak.protocol.oidc.TokenManager;
@@ -301,15 +302,15 @@ public class AuthenticationProcessor {
 
         @Override
         public AuthenticationExecutionModel.Requirement getCategoryRequirementFromCurrentFlow(String authenticatorCategory) {
-            return realm.getAuthenticationExecutionsStream(execution.getParentFlow())
-                    .filter(e -> {
-                        AuthenticatorFactory factory = (AuthenticatorFactory) getSession().getKeycloakSessionFactory()
-                                .getProviderFactory(Authenticator.class, e.getAuthenticator());
-                        return factory != null && factory.getReferenceCategory().equals(authenticatorCategory);
-                    })
-                    .map(AuthenticationExecutionModel::getRequirement)
-                    .findFirst()
-                    .orElse(null);
+            List<AuthenticationExecutionModel> executions = realm.getAuthenticationExecutions(execution.getParentFlow());
+            for (AuthenticationExecutionModel exe : executions) {
+                AuthenticatorFactory factory = (AuthenticatorFactory) getSession().getKeycloakSessionFactory().getProviderFactory(Authenticator.class, exe.getAuthenticator());
+                if (factory != null && factory.getReferenceCategory().equals(authenticatorCategory)) {
+                    return exe.getRequirement();
+                }
+
+            }
+            return null;
         }
 
         @Override
@@ -805,7 +806,7 @@ public class AuthenticationProcessor {
                 return ClientAuthUtil.errorResponse(Response.Status.BAD_REQUEST.getStatusCode(), "unauthorized_client", e.getMessage());
             } else {
                 event.error(Errors.INVALID_CLIENT_CREDENTIALS);
-                return ClientAuthUtil.errorResponse(Response.Status.BAD_REQUEST.getStatusCode(), "invalid_client", e.getError().toString() + ": " + e.getMessage());
+                return ClientAuthUtil.errorResponse(Response.Status.BAD_REQUEST.getStatusCode(), "unauthorized_client", e.getError().toString() + ": " + e.getMessage());
             }
         } else {
             ServicesLogger.LOGGER.errorAuthenticatingClient(failure);
@@ -1010,10 +1011,8 @@ public class AuthenticationProcessor {
 
             userSession = session.sessions().getUserSession(realm, authSession.getParentSession().getId());
             if (userSession == null) {
-                UserSessionModel.SessionPersistenceState persistenceState = UserSessionModel.SessionPersistenceState.fromString(authSession.getClientNote(AuthenticationManager.USER_SESSION_PERSISTENT_STATE));
-
                 userSession = session.sessions().createUserSession(authSession.getParentSession().getId(), realm, authSession.getAuthenticatedUser(), username, connection.getRemoteAddr(), authSession.getProtocol()
-                        , remember, brokerSessionId, brokerUserId, persistenceState);
+                        , remember, brokerSessionId, brokerUserId);
             } else if (userSession.getUser() == null || !AuthenticationManager.isSessionValid(realm, userSession)) {
                 userSession.restartSession(realm, authSession.getAuthenticatedUser(), username, connection.getRemoteAddr(), authSession.getProtocol()
                         , remember, brokerSessionId, brokerUserId);
@@ -1044,7 +1043,7 @@ public class AuthenticationProcessor {
     }
 
     public void evaluateRequiredActionTriggers() {
-        AuthenticationManager.evaluateRequiredActionTriggers(session, authenticationSession, request, event, realm, authenticationSession.getAuthenticatedUser());
+        AuthenticationManager.evaluateRequiredActionTriggers(session, authenticationSession, connection, request, uriInfo, event, realm, authenticationSession.getAuthenticatedUser());
     }
 
     public Response finishAuthentication(LoginProtocol protocol) {
@@ -1075,7 +1074,7 @@ public class AuthenticationProcessor {
     }
 
     public String nextRequiredAction() {
-        return AuthenticationManager.nextRequiredAction(session, authenticationSession, request, event);
+        return AuthenticationManager.nextRequiredAction(session, authenticationSession, connection, request, uriInfo, event);
     }
 
     public AuthenticationProcessor.Result createAuthenticatorContext(AuthenticationExecutionModel model, Authenticator authenticator, List<AuthenticationExecutionModel> executions) {

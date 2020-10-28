@@ -17,7 +17,6 @@
 
 package org.keycloak.events.log;
 
-import org.keycloak.common.util.StackUtil;
 import org.jboss.logging.Logger;
 import org.keycloak.events.Event;
 import org.keycloak.events.EventListenerProvider;
@@ -96,10 +95,6 @@ public class JBossLoggingEventListenerProvider implements EventListenerProvider 
             
             if(logger.isTraceEnabled()) {
                 setKeycloakContext(sb);
-
-                if (StackUtil.isShortStackTraceEnabled()) {
-                    sb.append(", stackTrace=").append(StackUtil.getShortStackTrace());
-                }
             }
 
             logger.log(logger.isTraceEnabled() ? Logger.Level.TRACE : level, sb.toString());

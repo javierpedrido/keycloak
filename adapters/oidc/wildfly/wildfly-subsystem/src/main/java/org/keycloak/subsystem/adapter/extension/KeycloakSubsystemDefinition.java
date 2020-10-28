@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Red Hat, Inc. and/or its affiliates
+ * Copyright 2016 Red Hat, Inc. and/or its affiliates
  * and other contributors as indicated by the @author tags.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,8 +21,6 @@ import org.jboss.as.controller.ReloadRequiredRemoveStepHandler;
 import org.jboss.as.controller.SimpleResourceDefinition;
 import org.jboss.as.controller.operations.common.GenericSubsystemDescribeHandler;
 import org.jboss.as.controller.registry.ManagementResourceRegistration;
-import org.jboss.as.controller.registry.RuntimePackageDependency;
-import org.jboss.modules.ModuleIdentifier;
 
 /**
  * Definition of subsystem=keycloak.
@@ -30,9 +28,6 @@ import org.jboss.modules.ModuleIdentifier;
  * @author Stan Silvert ssilvert@redhat.com (C) 2013 Red Hat Inc.
  */
 public class KeycloakSubsystemDefinition extends SimpleResourceDefinition {
-
-    static final ModuleIdentifier KEYCLOAK_JBOSS_CORE_ADAPTER = ModuleIdentifier.create("org.keycloak.keycloak-jboss-adapter-core");
-
     protected KeycloakSubsystemDefinition() {
         super(KeycloakExtension.SUBSYSTEM_PATH,
                 KeycloakExtension.getResourceDescriptionResolver("subsystem"),
@@ -47,10 +42,4 @@ public class KeycloakSubsystemDefinition extends SimpleResourceDefinition {
         resourceRegistration.registerOperationHandler(GenericSubsystemDescribeHandler.DEFINITION, GenericSubsystemDescribeHandler.INSTANCE);
     }
 
-    @Override
-    public void registerAdditionalRuntimePackages(ManagementResourceRegistration resourceRegistration) {
-        // This module is required by deployment but not referenced by JBoss modules
-        resourceRegistration.registerAdditionalRuntimePackages(
-                RuntimePackageDependency.required(KEYCLOAK_JBOSS_CORE_ADAPTER.getName()));
-    }
 }

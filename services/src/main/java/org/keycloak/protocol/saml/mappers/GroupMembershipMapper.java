@@ -20,6 +20,7 @@ package org.keycloak.protocol.saml.mappers;
 import org.keycloak.dom.saml.v2.assertion.AttributeStatementType;
 import org.keycloak.dom.saml.v2.assertion.AttributeType;
 import org.keycloak.models.AuthenticatedClientSessionModel;
+import org.keycloak.models.GroupModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.ProtocolMapperModel;
 import org.keycloak.models.UserSessionModel;
@@ -31,7 +32,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
@@ -122,27 +122,27 @@ public class GroupMembershipMapper extends AbstractSAMLProtocolMapper implements
         boolean singleAttribute = Boolean.parseBoolean(single);
 
         boolean fullPath = useFullPath(mappingModel);
-        final AtomicReference<AttributeType> singleAttributeType = new AtomicReference<>(null);
-        userSession.getUser().getGroupsStream().forEach(group -> {
+        AttributeType singleAttributeType = null;
+        for (GroupModel group : userSession.getUser().getGroups()) {
             String groupName;
             if (fullPath) {
                 groupName = ModelToRepresentation.buildGroupPath(group);
             } else {
                 groupName = group.getName();
             }
-            AttributeType attributeType;
+            AttributeType attributeType = null;
             if (singleAttribute) {
-                if (singleAttributeType.get() == null) {
-                    singleAttributeType.set(AttributeStatementHelper.createAttributeType(mappingModel));
-                    attributeStatement.addAttribute(new AttributeStatementType.ASTChoiceType(singleAttributeType.get()));
+                if (singleAttributeType == null) {
+                    singleAttributeType = AttributeStatementHelper.createAttributeType(mappingModel);
+                    attributeStatement.addAttribute(new AttributeStatementType.ASTChoiceType(singleAttributeType));
                 }
-                attributeType = singleAttributeType.get();
+                attributeType = singleAttributeType;
             } else {
                 attributeType = AttributeStatementHelper.createAttributeType(mappingModel);
                 attributeStatement.addAttribute(new AttributeStatementType.ASTChoiceType(attributeType));
             }
             attributeType.addAttributeValue(groupName);
-        });
+        }
     }
 
     public static ProtocolMapperModel create(String name, String samlAttributeName, String nameFormat, String friendlyName, boolean singleAttribute) {

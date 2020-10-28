@@ -232,7 +232,7 @@ public class PolicyEnforcer {
         return paths;
     }
 
-    public static class PathConfigMatcher extends PathMatcher<PathConfig> {
+    public class PathConfigMatcher extends PathMatcher<PathConfig> {
 
         private final Map<String, PathConfig> paths;
         private final PathCache pathCache;

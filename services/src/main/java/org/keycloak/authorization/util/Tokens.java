@@ -30,7 +30,9 @@ import org.keycloak.services.managers.AuthenticationManager.AuthResult;
 public class Tokens {
 
     public static AccessToken getAccessToken(KeycloakSession keycloakSession) {
-        AuthResult authResult = new AppAuthManager.BearerTokenAuthenticator(keycloakSession).authenticate();
+        AppAuthManager authManager = new AppAuthManager();
+        KeycloakContext context = keycloakSession.getContext();
+        AuthResult authResult = authManager.authenticateBearerToken(keycloakSession, context.getRealm(), context.getUri(), context.getConnection(), context.getRequestHeaders());
 
         if (authResult != null) {
             return authResult.getToken();
@@ -40,9 +42,9 @@ public class Tokens {
     }
 
     public static AccessToken getAccessToken(String accessToken, KeycloakSession keycloakSession) {
-        AuthResult authResult = new AppAuthManager.BearerTokenAuthenticator(keycloakSession)
-                .setTokenString(accessToken)
-                .authenticate();
+        AppAuthManager authManager = new AppAuthManager();
+        KeycloakContext context = keycloakSession.getContext();
+        AuthResult authResult = authManager.authenticateBearerToken(accessToken, keycloakSession, context.getRealm(), context.getUri(), context.getConnection(), context.getRequestHeaders());
 
         if (authResult != null) {
             return authResult.getToken();

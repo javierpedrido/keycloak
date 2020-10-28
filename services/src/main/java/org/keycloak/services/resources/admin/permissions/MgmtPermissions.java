@@ -366,7 +366,10 @@ class MgmtPermissions implements AdminPermissionEvaluator, AdminPermissionManage
             if (identity.hasRealmRole(AdminRoles.ADMIN) || identity.hasRealmRole(AdminRoles.CREATE_REALM)) {
                 return true;
             }
-            return session.realms().getRealmsStream().anyMatch(this::isAdmin);
+            for (RealmModel realm : session.realms().getRealms()) {
+                if (isAdmin(realm)) return true;
+            }
+            return false;
         } else {
             return isAdmin(adminsRealm);
         }

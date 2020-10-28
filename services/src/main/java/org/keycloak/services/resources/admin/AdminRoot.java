@@ -72,6 +72,7 @@ public class AdminRoot {
     @Context
     protected HttpResponse response;
 
+    protected AppAuthManager authManager;
     protected TokenManager tokenManager;
 
     @Context
@@ -79,6 +80,7 @@ public class AdminRoot {
 
     public AdminRoot() {
         this.tokenManager = new TokenManager();
+        this.authManager = new AppAuthManager();
     }
 
     public static UriBuilder adminBaseUrl(UriInfo uriInfo) {
@@ -151,7 +153,7 @@ public class AdminRoot {
 
 
     protected AdminAuth authenticateRealmAdminRequest(HttpHeaders headers) {
-        String tokenString = AppAuthManager.extractAuthorizationHeaderToken(headers);
+        String tokenString = authManager.extractAuthorizationHeaderToken(headers);
         if (tokenString == null) throw new NotAuthorizedException("Bearer");
         AccessToken token;
         try {
@@ -167,13 +169,7 @@ public class AdminRoot {
             throw new NotAuthorizedException("Unknown realm in token");
         }
         session.getContext().setRealm(realm);
-
-        AuthenticationManager.AuthResult authResult = new AppAuthManager.BearerTokenAuthenticator(session)
-                .setRealm(realm)
-                .setConnection(clientConnection)
-                .setHeaders(headers)
-                .authenticate();
-
+        AuthenticationManager.AuthResult authResult = authManager.authenticateBearerToken(session, realm, session.getContext().getUri(), clientConnection, headers);
         if (authResult == null) {
             logger.debug("Token not valid");
             throw new NotAuthorizedException("Bearer");

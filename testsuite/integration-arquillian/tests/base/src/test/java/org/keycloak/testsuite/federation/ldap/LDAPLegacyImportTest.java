@@ -78,7 +78,7 @@ public class LDAPLegacyImportTest extends AbstractLDAPTest {
         testingClient.server().run(session -> {
             LDAPTestContext ctx = LDAPTestContext.init(session);
             RealmModel appRealm = ctx.getRealm();
-            ComponentModel ldapModel = appRealm.getComponentsStream(appRealm.getId(), UserStorageProvider.class.getName()).findFirst().get();
+            ComponentModel ldapModel = appRealm.getComponents(appRealm.getId(), UserStorageProvider.class.getName()).get(0);
 
             LDAPTestUtils.addLocalUser(session, appRealm, "marykeycloak", "mary@test.com", "password-app");
 

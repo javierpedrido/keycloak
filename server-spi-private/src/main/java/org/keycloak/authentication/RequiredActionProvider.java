@@ -17,7 +17,6 @@
 
 package org.keycloak.authentication;
 
-import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.provider.Provider;
 import org.keycloak.sessions.AuthenticationSessionModel;
@@ -76,10 +75,4 @@ public interface RequiredActionProvider extends Provider {
      * @param context
      */
     void processAction(RequiredActionContext context);
-
-    /**
-     * Defines the max time after a user login, after which re-authentication is requested for an AIA. 0 means that re-authentication is always requested.
-     *
-     */
-    default int getMaxAuthAge() { return Constants.KC_ACTION_MAX_AGE; }
 }

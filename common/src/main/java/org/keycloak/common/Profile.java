@@ -53,8 +53,7 @@ public class Profile {
         SCRIPTS(Type.PREVIEW),
         TOKEN_EXCHANGE(Type.PREVIEW),
         UPLOAD_SCRIPTS(DEPRECATED),
-        WEB_AUTHN(Type.DEFAULT, Type.PREVIEW),
-        CLIENT_POLICIES(Type.PREVIEW);
+        WEB_AUTHN(Type.DEFAULT, Type.PREVIEW);
 
         private Type typeProject;
         private Type typeProduct;
@@ -92,7 +91,7 @@ public class Profile {
         PREVIEW
     }
 
-    private static Profile CURRENT;
+    private static Profile CURRENT = new Profile();
 
     private final ProductValue product;
 
@@ -103,10 +102,7 @@ public class Profile {
     private final Set<Feature> experimentalFeatures = new HashSet<>();
     private final Set<Feature> deprecatedFeatures = new HashSet<>();
 
-    private final PropertyResolver propertyResolver;
-    
-    public Profile(PropertyResolver resolver) {
-        this.propertyResolver = resolver;
+    private Profile() {
         Config config = new Config();
 
         product = "rh-sso".equals(Version.NAME) ? ProductValue.RHSSO : ProductValue.KEYCLOAK;
@@ -156,43 +152,32 @@ public class Profile {
         }
     }
 
-    private static Profile getInstance() {
-        if (CURRENT == null) {
-            CURRENT = new Profile(null);
-        }
-        return CURRENT;
-    }
-
     public static void init() {
-        CURRENT = new Profile(null);
-    }
-    
-    public static void setInstance(Profile instance) {
-        CURRENT = instance;
+        CURRENT = new Profile();
     }
 
     public static String getName() {
-        return getInstance().profile.name().toLowerCase();
+        return CURRENT.profile.name().toLowerCase();
     }
 
     public static Set<Feature> getDisabledFeatures() {
-        return getInstance().disabledFeatures;
+        return CURRENT.disabledFeatures;
     }
 
     public static Set<Feature> getPreviewFeatures() {
-        return getInstance().previewFeatures;
+        return CURRENT.previewFeatures;
     }
 
     public static Set<Feature> getExperimentalFeatures() {
-        return getInstance().experimentalFeatures;
+        return CURRENT.experimentalFeatures;
     }
 
     public static Set<Feature> getDeprecatedFeatures() {
-        return getInstance().deprecatedFeatures;
+        return CURRENT.deprecatedFeatures;
     }
 
     public static boolean isFeatureEnabled(Feature feature) {
-        return !getInstance().disabledFeatures.contains(feature);
+        return !CURRENT.disabledFeatures.contains(feature);
     }
 
     private class Config {
@@ -207,9 +192,7 @@ public class Profile {
                 if (jbossServerConfigDir != null) {
                     File file = new File(jbossServerConfigDir, "profile.properties");
                     if (file.isFile()) {
-                        try (FileInputStream is = new FileInputStream(file)) {
-                            properties.load(is);
-                        }
+                        properties.load(new FileInputStream(file));
                     }
                 }
             } catch (IOException e) {
@@ -218,7 +201,7 @@ public class Profile {
         }
 
         public String getProfile() {
-            String profile = getProperty("keycloak.profile");
+            String profile = System.getProperty("keycloak.profile");
             if (profile != null) {
                 return profile;
             }
@@ -232,8 +215,7 @@ public class Profile {
         }
 
         public Boolean getConfig(Feature feature) {
-            String config = getProperty("keycloak.profile.feature." + feature.name().toLowerCase());
-
+            String config = System.getProperty("keycloak.profile.feature." + feature.name().toLowerCase());
             if (config == null) {
                 config = properties.getProperty("feature." + feature.name().toLowerCase());
             }
@@ -248,24 +230,6 @@ public class Profile {
                 throw new RuntimeException("Invalid value for feature " + config);
             }
         }
-
-        private String getProperty(String name) {
-            String value = System.getProperty(name);
-
-            if (value != null) {
-                return value;
-            }
-            
-            if (propertyResolver != null) {
-                return propertyResolver.resolve(name);
-            }
-            
-            return null;
-        }
-    }
-    
-    public interface PropertyResolver {
-        String resolve(String feature);
     }
 
 }

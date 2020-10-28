@@ -50,15 +50,23 @@ import org.keycloak.storage.UserStorageProvider;
 import org.keycloak.storage.client.ClientStorageProvider;
 
 import javax.persistence.EntityManager;
+import javax.persistence.Query;
 import javax.persistence.TypedQuery;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Expression;
-import javax.persistence.criteria.Join;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import javax.persistence.criteria.Subquery;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import javax.persistence.LockModeType;
 
@@ -70,7 +78,6 @@ import javax.persistence.LockModeType;
 public class JpaUserProvider implements UserProvider, UserCredentialStore {
 
     private static final String EMAIL = "email";
-    private static final String EMAIL_VERIFIED = "emailVerified";
     private static final String USERNAME = "username";
     private static final String FIRST_NAME = "firstName";
     private static final String LAST_NAME = "lastName";
@@ -103,18 +110,17 @@ public class JpaUserProvider implements UserProvider, UserCredentialStore {
         if (addDefaultRoles) {
             DefaultRoles.addDefaultRoles(realm, userModel);
 
-            // No need to check if user has group as it's new user
-            realm.getDefaultGroupsStream().forEach(userModel::joinGroupImpl);
+            for (GroupModel g : realm.getDefaultGroups()) {
+                userModel.joinGroupImpl(g); // No need to check if user has group as it's new user
+            }
         }
 
-        if (addDefaultRequiredActions) {
-            Optional<String> requiredAction = realm.getRequiredActionProvidersStream()
-                    .filter(RequiredActionProviderModel::isEnabled)
-                    .filter(RequiredActionProviderModel::isDefaultAction)
-                    .map(RequiredActionProviderModel::getAlias)
-                    .findFirst();
-            if (requiredAction.isPresent())
-                userModel.addRequiredAction(requiredAction.get());
+        if (addDefaultRequiredActions){
+            for (RequiredActionProviderModel r : realm.getRequiredActionProviders()) {
+                if (r.isEnabled() && r.isDefaultAction()) {
+                    userModel.addRequiredAction(r.getAlias());
+                }
+            }
         }
 
         return userModel;
@@ -681,9 +687,6 @@ public class JpaUserProvider implements UserProvider, UserCredentialStore {
                 case UserModel.EMAIL:
                     restrictions.add(qb.like(from.get("email"), "%" + value + "%"));
                     break;
-                case UserModel.EMAIL_VERIFIED:
-                    restrictions.add(qb.equal(from.get("emailVerified"), Boolean.parseBoolean(value.toLowerCase())));
-                    break;
             }
         }
 
@@ -729,9 +732,6 @@ public class JpaUserProvider implements UserProvider, UserCredentialStore {
                     break;
                 case UserModel.EMAIL:
                     restrictions.add(qb.like(from.get("user").get("email"), "%" + value + "%"));
-                    break;
-                case UserModel.EMAIL_VERIFIED:
-                    restrictions.add(qb.equal(from.get("emailVerified"), Boolean.parseBoolean(value.toLowerCase())));
                     break;
             }
         }
@@ -841,8 +841,6 @@ public class JpaUserProvider implements UserProvider, UserCredentialStore {
             predicates.add(root.get("serviceAccountClientLink").isNull());
         }
 
-        Join<Object, Object> federatedIdentitiesJoin = null;
-
         for (Map.Entry<String, String> entry : attributes.entrySet()) {
             String key = entry.getKey();
             String value = entry.getValue();
@@ -855,8 +853,7 @@ public class JpaUserProvider implements UserProvider, UserCredentialStore {
                 case UserModel.SEARCH:
                     List<Predicate> orPredicates = new ArrayList();
 
-                    orPredicates
-                            .add(builder.like(builder.lower(root.get(USERNAME)), "%" + value.toLowerCase() + "%"));
+                    orPredicates.add(builder.like(builder.lower(root.get(USERNAME)), "%" + value.toLowerCase() + "%"));
                     orPredicates.add(builder.like(builder.lower(root.get(EMAIL)), "%" + value.toLowerCase() + "%"));
                     orPredicates.add(builder.like(
                             builder.lower(builder.concat(builder.concat(
@@ -878,24 +875,8 @@ public class JpaUserProvider implements UserProvider, UserCredentialStore {
                         predicates.add(builder.like(builder.lower(root.get(key)), "%" + value.toLowerCase() + "%"));
                     }
                     break;
-                case EMAIL_VERIFIED:
-                    predicates.add(builder.equal(root.get(key), Boolean.parseBoolean(value.toLowerCase())));
-                    break;
                 case UserModel.ENABLED:
-                    predicates.add(builder.equal(root.get(key), Boolean.parseBoolean(value)));
-                    break;
-                case UserModel.IDP_ALIAS:
-                    if (federatedIdentitiesJoin == null) {
-                        federatedIdentitiesJoin = root.join("federatedIdentities");
-                    }
-                    predicates.add(builder.equal(federatedIdentitiesJoin.get("identityProvider"), value));
-                    break;
-                case UserModel.IDP_USER_ID:
-                    if (federatedIdentitiesJoin == null) {
-                        federatedIdentitiesJoin = root.join("federatedIdentities");
-                    }
-                    predicates.add(builder.equal(federatedIdentitiesJoin.get("userId"), value));
-                    break;
+                    predicates.add(builder.equal(builder.lower(root.get(key)), Boolean.parseBoolean(value.toLowerCase())));
             }
         }
 

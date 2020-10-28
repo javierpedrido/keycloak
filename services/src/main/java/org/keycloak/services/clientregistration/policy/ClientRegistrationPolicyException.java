@@ -22,7 +22,7 @@ import org.keycloak.component.ComponentModel;
 /**
  * @author <a href="mailto:mposolda@redhat.com">Marek Posolda</a>
  */
-public class ClientRegistrationPolicyException extends RuntimeException {
+public class ClientRegistrationPolicyException extends Exception {
 
     private ComponentModel policyModel;
 

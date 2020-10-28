@@ -37,15 +37,9 @@ import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.services.messages.Messages;
 import org.keycloak.services.resources.AttributeFormDataProcessor;
 import org.keycloak.services.validation.Validation;
-import org.keycloak.userprofile.LegacyUserProfileProviderFactory;
-import org.keycloak.userprofile.UserProfile;
-import org.keycloak.userprofile.UserProfileProvider;
-import org.keycloak.userprofile.profile.representations.AttributeUserProfile;
-import org.keycloak.userprofile.utils.UserUpdateHelper;
-import org.keycloak.userprofile.profile.DefaultUserProfileContext;
-import org.keycloak.userprofile.validation.UserProfileValidationResult;
 
 import javax.ws.rs.core.MultivaluedMap;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -69,38 +63,52 @@ public class RegistrationUserCreation implements FormAction, FormActionFactory {
     @Override
     public void validate(ValidationContext context) {
         MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
+        List<FormMessage> errors = new ArrayList<>();
         context.getEvent().detail(Details.REGISTER_METHOD, "form");
 
-        UserProfile newProfile = AttributeFormDataProcessor.toUserProfile(context.getHttpRequest().getDecodedFormParameters());
-        String email = newProfile.getAttributes().getFirstAttribute(UserModel.EMAIL);
-        String username = newProfile.getAttributes().getFirstAttribute(UserModel.USERNAME);
-        context.getEvent().detail(Details.EMAIL, email);
+        String email = formData.getFirst(Validation.FIELD_EMAIL);
+        String username = formData.getFirst(RegistrationPage.FIELD_USERNAME);
         context.getEvent().detail(Details.USERNAME, username);
+        context.getEvent().detail(Details.EMAIL, email);
 
-        UserProfileProvider profileProvider = context.getSession().getProvider(UserProfileProvider.class, LegacyUserProfileProviderFactory.PROVIDER_ID);
-
-        context.getEvent().detail(Details.REGISTER_METHOD, "form");
-        UserProfileValidationResult result = profileProvider.validate(DefaultUserProfileContext.forRegistrationUserCreation(), newProfile);
-
-        List<FormMessage> errors = Validation.getFormErrorsFromValidation(result);
+        String usernameField = RegistrationPage.FIELD_USERNAME;
         if (context.getRealm().isRegistrationEmailAsUsername()) {
             context.getEvent().detail(Details.USERNAME, email);
-        }
-        if (errors.size() > 0) {
-            if (result.hasFailureOfErrorType(Messages.EMAIL_EXISTS)) {
-                context.error(Errors.EMAIL_IN_USE);
-                formData.remove(RegistrationPage.FIELD_EMAIL);
-            } else if (result.hasFailureOfErrorType(Messages.MISSING_EMAIL, Messages.MISSING_USERNAME, Messages.INVALID_EMAIL)) {
-                if (result.hasFailureOfErrorType(Messages.INVALID_EMAIL))
-                    formData.remove(Validation.FIELD_EMAIL);
+
+            if (Validation.isBlank(email)) {
+                errors.add(new FormMessage(RegistrationPage.FIELD_EMAIL, Messages.MISSING_EMAIL));
+            } else if (!Validation.isEmailValid(email)) {
+                errors.add(new FormMessage(RegistrationPage.FIELD_EMAIL, Messages.INVALID_EMAIL));
+                formData.remove(Validation.FIELD_EMAIL);
+            }
+            if (errors.size() > 0) {
                 context.error(Errors.INVALID_REGISTRATION);
-            } else if (result.hasFailureOfErrorType(Messages.USERNAME_EXISTS)) {
-                context.error(Errors.USERNAME_IN_USE);
-                formData.remove(Validation.FIELD_USERNAME);
+                context.validationError(formData, errors);
+                return;
+            }
+            if (email != null && !context.getRealm().isDuplicateEmailsAllowed() && context.getSession().users().getUserByEmail(email, context.getRealm()) != null) {
+                context.error(Errors.EMAIL_IN_USE);
+                formData.remove(Validation.FIELD_EMAIL);
+                errors.add(new FormMessage(RegistrationPage.FIELD_EMAIL, Messages.EMAIL_EXISTS));
+                context.validationError(formData, errors);
+                return;
+            }
+        } else {
+            if (Validation.isBlank(username)) {
+                context.error(Errors.INVALID_REGISTRATION);
+                errors.add(new FormMessage(RegistrationPage.FIELD_USERNAME, Messages.MISSING_USERNAME));
+                context.validationError(formData, errors);
+                return;
             }
 
-            context.validationError(formData, errors);
-            return;
+            if (context.getSession().users().getUserByUsername(username, context.getRealm()) != null) {
+                context.error(Errors.USERNAME_IN_USE);
+                errors.add(new FormMessage(usernameField, Messages.USERNAME_EXISTS));
+                formData.remove(Validation.FIELD_USERNAME);
+                context.validationError(formData, errors);
+                return;
+            }
+
         }
         context.success();
     }
@@ -112,23 +120,22 @@ public class RegistrationUserCreation implements FormAction, FormActionFactory {
 
     @Override
     public void success(FormContext context) {
-        AttributeUserProfile updatedProfile = AttributeFormDataProcessor.toUserProfile(context.getHttpRequest().getDecodedFormParameters());
-
-        String email = updatedProfile.getAttributes().getFirstAttribute(UserModel.EMAIL);
-        String username = updatedProfile.getAttributes().getFirstAttribute(UserModel.USERNAME);
+        MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
+        String email = formData.getFirst(Validation.FIELD_EMAIL);
+        String username = formData.getFirst(RegistrationPage.FIELD_USERNAME);
         if (context.getRealm().isRegistrationEmailAsUsername()) {
-            username = email;
+            username = formData.getFirst(RegistrationPage.FIELD_EMAIL);
         }
         context.getEvent().detail(Details.USERNAME, username)
                 .detail(Details.REGISTER_METHOD, "form")
-                .detail(Details.EMAIL, email);
-
+                .detail(Details.EMAIL, email)
+        ;
         UserModel user = context.getSession().users().addUser(context.getRealm(), username);
         user.setEnabled(true);
-        UserUpdateHelper.updateRegistrationUserCreation(context.getRealm(), user, updatedProfile);
 
+        user.setEmail(email);
         context.getAuthenticationSession().setClientNote(OIDCLoginProtocol.LOGIN_HINT_PARAM, username);
-
+        AttributeFormDataProcessor.process(formData, context.getRealm(), user);
         context.setUser(user);
         context.getEvent().user(user);
         context.getEvent().success();

@@ -78,6 +78,8 @@ import static org.keycloak.testsuite.util.WaitUtils.waitUntilElement;
 public class CorsExampleAdapterTest extends AbstractExampleAdapterTest {
 
     public static final String CORS = "cors";
+    public static final String AUTH_SERVER_HOST = "localhost-auth-127.0.0.1.nip.io";
+    private static final String hostBackup;
 
     @ArquillianResource
     private Deployer deployer;
@@ -128,6 +130,10 @@ public class CorsExampleAdapterTest extends AbstractExampleAdapterTest {
         deployer.undeploy(AngularCorsProductTestApp.DEPLOYMENT_NAME);
     }
 
+    static{
+        hostBackup = System.getProperty("auth.server.host", "localhost");
+        System.setProperty("auth.server.host", AUTH_SERVER_HOST);
+    }
 
     @Override
     public void setDefaultPageUriParameters() {
@@ -184,6 +190,7 @@ public class CorsExampleAdapterTest extends AbstractExampleAdapterTest {
                 "/auth/admin/master/console/#/server-info");
         jsDriverTestRealmLoginPage.form().login("admin", "admin");
 
+        WaitUtils.waitUntilElement(By.tagName("body")).is().visible();
         Pattern pattern = Pattern.compile("<td [^>]+>Server Version</td>" +
                 "\\s+<td [^>]+>([^<]+)</td>");
         Matcher matcher = pattern.matcher(DroneUtils.getCurrentDriver().getPageSource());
@@ -193,5 +200,10 @@ public class CorsExampleAdapterTest extends AbstractExampleAdapterTest {
         }
 
         return null;
+    }
+
+    @AfterClass
+    public static void afterCorsTest() {
+        System.setProperty("auth.server.host", hostBackup);
     }
 }

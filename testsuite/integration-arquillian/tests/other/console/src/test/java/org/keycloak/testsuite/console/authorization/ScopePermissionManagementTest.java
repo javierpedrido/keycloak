@@ -75,7 +75,7 @@ public class ScopePermissionManagementTest extends AbstractAuthorizationSettings
         policyC.setName("Policy C");
         policyC.addUser("test");
 
-        policies.user().create(policyC).close();
+        policies.user().create(policyC);
 
         authorization.scopes().create(new ScopeRepresentation("Scope A"));
         authorization.scopes().create(new ScopeRepresentation("Scope B"));

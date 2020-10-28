@@ -17,7 +17,6 @@
 
 package org.keycloak.storage.ldap.mappers.membership.group;
 
-import org.keycloak.common.util.ObjectUtil;
 import org.keycloak.component.ComponentModel;
 import org.keycloak.component.ComponentValidationException;
 import org.keycloak.models.KeycloakSession;
@@ -265,7 +264,6 @@ public class GroupLDAPStorageMapperFactory extends AbstractLDAPStorageMapperFact
         ComponentModel parentModel = realm.getComponent(model.getParentId());
         UserStorageProviderModel parent = new UserStorageProviderModel(parentModel);
         onParentUpdate(realm, parent, parent, model);
-        setDefaultGroupsPath(realm, model);
 
     }
 
@@ -274,14 +272,6 @@ public class GroupLDAPStorageMapperFactory extends AbstractLDAPStorageMapperFact
         ComponentModel parentModel = realm.getComponent(newModel.getParentId());
         UserStorageProviderModel parent = new UserStorageProviderModel(parentModel);
         onParentUpdate(realm, parent, parent, newModel);
-        setDefaultGroupsPath(realm, newModel);
-    }
-
-    private void setDefaultGroupsPath(RealmModel realm, ComponentModel mapperModel) {
-        if (ObjectUtil.isBlank(mapperModel.getConfig().getFirst(GroupMapperConfig.LDAP_GROUPS_PATH))) {
-            mapperModel.getConfig().putSingle(GroupMapperConfig.LDAP_GROUPS_PATH, GroupMapperConfig.DEFAULT_LDAP_GROUPS_PATH);
-            realm.updateComponent(mapperModel);
-        }
     }
 
     @Override
@@ -303,8 +293,9 @@ public class GroupLDAPStorageMapperFactory extends AbstractLDAPStorageMapperFact
 
         LDAPUtils.validateCustomLdapFilter(config.getConfig().getFirst(GroupMapperConfig.GROUPS_LDAP_FILTER));
 
-        String group = new GroupMapperConfig(config).getGroupsPath();
-        if (!GroupMapperConfig.DEFAULT_LDAP_GROUPS_PATH.equals(group) && KeycloakModelUtils.findGroupByPath(realm, group) == null) {
+        checkMandatoryConfigAttribute(GroupMapperConfig.LDAP_GROUPS_PATH, "Groups Path", config);
+        String group = config.getConfig().getFirst(GroupMapperConfig.LDAP_GROUPS_PATH).trim();
+        if (!"/".equals(group) && KeycloakModelUtils.findGroupByPath(realm, group) == null) {
             throw new ComponentValidationException("ldapErrorMissingGroupsPathGroup");
         }
     }

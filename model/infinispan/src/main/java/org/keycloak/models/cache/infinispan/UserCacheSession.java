@@ -737,7 +737,7 @@ public class UserCacheSession implements UserCache {
     }
 
     private UserConsentModel toConsentModel(RealmModel realm, CachedUserConsent cachedConsent) {
-        ClientModel client = session.clients().getClientById(realm, cachedConsent.getClientDbId());
+        ClientModel client = session.realms().getClientById(cachedConsent.getClientDbId(), realm);
         if (client == null) {
             return null;
         }

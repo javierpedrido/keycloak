@@ -13,13 +13,13 @@ First clone the Keycloak repository:
     
 To build Keycloak run:
 
-    mvn clean install
+    mvn install
     
 This will build all modules and run the testsuite. 
 
 To build the ZIP distribution run:
 
-    mvn clean install -Pdistribution
+    mvn install -Pdistribution
     
 Once completed you will find distribution archives in `distribution`.
 
@@ -27,12 +27,6 @@ To build only the server run:
 
     mvn -Pdistribution -pl distribution/server-dist -am -Dmaven.test.skip clean install
 
----
-**NOTE**
-
-Classes from `org.keycloak.testsuite.*` packages aren't suitable to be used in production.
-
----
 
 ## Starting Keycloak
 

@@ -36,10 +36,6 @@ public interface SessionIdMapperUpdater {
         @Override public void removeSession(SessionIdMapper idMapper, String httpSessionId) {
             idMapper.removeSession(httpSessionId);
         }
-
-        @Override public boolean refreshMapping(SessionIdMapper idMapper, String httpSessionId) {
-            return false;
-        }
     };
 
     /**
@@ -52,14 +48,12 @@ public interface SessionIdMapperUpdater {
         @Override public void map(SessionIdMapper idMapper, String sso, String principal, String httpSessionId) { }
 
         @Override public void removeSession(SessionIdMapper idMapper, String httpSessionId) { }
-
-        @Override public boolean refreshMapping(SessionIdMapper idMapper, String httpSessionId) { return false; }
     };
 
     /**
      * Delegates to {@link SessionIdMapper#clear} method..
      */
-    void clear(SessionIdMapper idMapper);
+    public abstract void clear(SessionIdMapper idMapper);
 
     /**
      * Delegates to {@link SessionIdMapper#map} method.
@@ -68,22 +62,12 @@ public interface SessionIdMapperUpdater {
      * @param principal Principal
      * @param session HTTP session ID
      */
-    void map(SessionIdMapper idMapper, String sso, String principal, String session);
+    public abstract void map(SessionIdMapper idMapper, String sso, String principal, String session);
 
     /**
      * Delegates to {@link SessionIdMapper#removeSession} method.
      * @param idMapper Mapper
      * @param session HTTP session ID.
      */
-    void removeSession(SessionIdMapper idMapper, String session);
-
-    /**
-     * Refreshes the mapping in the {@code idMapper} from the internal source of this mapped updater
-     * and maps it via {@link SessionIdMapper#map} method.
-     * @param idMapper Mapper
-     * @param session HTTP session ID.
-     * @return {@code true} if the mapping existed in the internal source of this mapped updater
-     * and has been refreshed, {@code false} otherwise
-     */
-    boolean refreshMapping(SessionIdMapper idMapper, String httpSessionId);
+    public abstract void removeSession(SessionIdMapper idMapper, String session);
 }

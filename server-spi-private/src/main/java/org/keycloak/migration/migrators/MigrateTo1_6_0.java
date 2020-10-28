@@ -29,6 +29,8 @@ import org.keycloak.models.RoleModel;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.representations.idm.RealmRepresentation;
 
+import java.util.List;
+
 /**
  * @author <a href="mailto:mposolda@redhat.com">Marek Posolda</a>
  */
@@ -49,7 +51,10 @@ public class MigrateTo1_6_0 implements Migration {
             throw new RuntimeException("Can't find default locale mapper");
         }
 
-        session.realms().getRealmsStream().forEach(realm -> migrateRealm(session, localeMapper, realm));
+        List<RealmModel> realms = session.realms().getRealms();
+        for (RealmModel realm : realms) {
+            migrateRealm(session, localeMapper, realm);
+        }
     }
 
     @Override

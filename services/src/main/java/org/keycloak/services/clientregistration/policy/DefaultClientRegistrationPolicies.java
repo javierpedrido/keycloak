@@ -19,6 +19,7 @@ package org.keycloak.services.clientregistration.policy;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 import org.keycloak.component.ComponentModel;
 import org.keycloak.models.RealmModel;
@@ -56,9 +57,10 @@ public class DefaultClientRegistrationPolicies {
     public static void addDefaultPolicies(RealmModel realm) {
         String anonPolicyType = ClientRegistrationPolicyManager.getComponentTypeKey(RegistrationAuth.ANONYMOUS);
         String authPolicyType = ClientRegistrationPolicyManager.getComponentTypeKey(RegistrationAuth.AUTHENTICATED);
+        List<ComponentModel> policies = realm.getComponents(realm.getId(), ClientRegistrationPolicy.class.getName());
 
         // Probably an issue if admin removes all policies intentionally...
-        if (realm.getComponentsStream(realm.getId(), ClientRegistrationPolicy.class.getName()).count() == 0) {
+        if (policies == null ||policies.isEmpty()) {
             addAnonymousPolicies(realm, anonPolicyType);
             addAuthPolicies(realm, authPolicyType);
         }

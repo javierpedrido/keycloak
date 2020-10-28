@@ -32,7 +32,6 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.protocol.oidc.OIDCLoginProtocolFactory;
 import org.keycloak.protocol.oidc.OIDCLoginProtocolService;
-import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.representations.idm.ComponentRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
@@ -56,7 +55,6 @@ import java.util.Map;
 import static org.keycloak.storage.UserStorageProviderModel.IMPORT_ENABLED;
 import static org.keycloak.testsuite.util.URLAssert.assertCurrentUrlEquals;
 import static org.keycloak.testsuite.util.URLAssert.assertCurrentUrlStartsWithLoginUrlOf;
-import static org.keycloak.testsuite.util.WaitUtils.waitForPageToLoad;
 
 /**
  * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
@@ -104,7 +102,7 @@ public class UserStorageConsentTest extends AbstractServletsAdapterTest {
 
     public static void setupConsent(KeycloakSession session) {
         RealmModel realm = session.realms().getRealmByName("demo");
-        ClientModel product = session.clients().getClientByClientId(realm, "product-portal");
+        ClientModel product = session.realms().getClientByClientId("product-portal", realm);
         product.setConsentRequired(true);
         ClientScopeModel clientScope = realm.addClientScope("clientScope");
         clientScope.setProtocol(OIDCLoginProtocol.LOGIN_PROTOCOL);
@@ -131,12 +129,6 @@ public class UserStorageConsentTest extends AbstractServletsAdapterTest {
         product.addClientScope(clientScope, true);
     }
 
-    public static void setupDisplayClientOnConsentScreen(KeycloakSession session) {
-        RealmModel realm = session.realms().getRealmByName("demo");
-        ClientModel product = session.clients().getClientByClientId(realm, "product-portal");
-        product.setDisplayOnConsentScreen(true);
-    }
-
     /**
      * KEYCLOAK-5273
      *
@@ -144,16 +136,6 @@ public class UserStorageConsentTest extends AbstractServletsAdapterTest {
      */
     @Test
     public void testLogin() throws Exception {
-        assertLogin();
-    }
-
-    @Test
-    public void testLoginDisplayClientOnConsentScreen() throws Exception {
-        testingClient.server().run(UserStorageConsentTest::setupDisplayClientOnConsentScreen);
-        assertLogin();
-    }
-
-    private void assertLogin() throws InterruptedException {
         testingClient.server().run(UserStorageConsentTest::setupConsent);
         UserRepresentation memuser = new UserRepresentation();
         memuser.setUsername("memuser");
@@ -177,15 +159,13 @@ public class UserStorageConsentTest extends AbstractServletsAdapterTest {
                 .build("demo").toString();
 
         driver.navigate().to(logoutUri);
-        waitForPageToLoad();
         assertCurrentUrlStartsWithLoginUrlOf(testRealmPage);
         productPortal.navigateTo();
         assertCurrentUrlStartsWithLoginUrlOf(testRealmPage);
         testRealmLoginPage.form().login("memuser", "password");
         assertCurrentUrlEquals(productPortal.toString());
         Assert.assertTrue(driver.getPageSource().contains("iPhone"));
-
-        driver.navigate().to(logoutUri);
+        
         adminClient.realm("demo").users().delete(uid).close();
     }
 }

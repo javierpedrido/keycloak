@@ -30,7 +30,7 @@ import org.keycloak.storage.ldap.LDAPStorageProvider;
 import org.keycloak.storage.ldap.idm.model.LDAPObject;
 import org.keycloak.storage.ldap.idm.query.internal.LDAPQuery;
 
-import java.util.stream.Stream;
+import java.util.Set;
 
 /**
  * @author <a href="mailto:mposolda@redhat.com">Marek Posolda</a>
@@ -54,27 +54,27 @@ public class HardcodedLDAPRoleStorageMapper extends AbstractLDAPStorageMapper {
         return new UserModelDelegate(delegate) {
 
             @Override
-            public Stream<RoleModel> getRealmRoleMappingsStream() {
-                Stream<RoleModel> realmRoleMappings = super.getRealmRoleMappingsStream();
+            public Set<RoleModel> getRealmRoleMappings() {
+                Set<RoleModel> roles = super.getRealmRoleMappings();
 
                 RoleModel role = getRole(realm);
                 if (role != null && role.getContainer().equals(realm)) {
-                    realmRoleMappings = Stream.concat(realmRoleMappings, Stream.of(role));
+                    roles.add(role);
                 }
 
-                return realmRoleMappings;
+                return roles;
             }
 
             @Override
-            public Stream<RoleModel> getClientRoleMappingsStream(ClientModel app) {
-                Stream<RoleModel> clientRoleMappings = super.getClientRoleMappingsStream(app);
+            public Set<RoleModel> getClientRoleMappings(ClientModel app) {
+                Set<RoleModel> roles = super.getClientRoleMappings(app);
 
                 RoleModel role = getRole(realm);
                 if (role != null && role.getContainer().equals(app)) {
-                    return Stream.concat(clientRoleMappings, Stream.of(role));
+                    roles.add(role);
                 }
 
-                return clientRoleMappings;
+                return roles;
             }
 
             @Override
@@ -83,15 +83,15 @@ public class HardcodedLDAPRoleStorageMapper extends AbstractLDAPStorageMapper {
             }
 
             @Override
-            public Stream<RoleModel> getRoleMappingsStream() {
-                Stream<RoleModel> roleMappings = super.getRoleMappingsStream();
+            public Set<RoleModel> getRoleMappings() {
+                Set<RoleModel> roles = super.getRoleMappings();
 
                 RoleModel role = getRole(realm);
                 if (role != null) {
-                    roleMappings = Stream.concat(roleMappings, Stream.of(role));
+                    roles.add(role);
                 }
 
-                return roleMappings;
+                return roles;
             }
 
             @Override

@@ -17,7 +17,6 @@
 
 package org.keycloak.storage.ldap.mappers.membership.group;
 
-import org.keycloak.common.util.ObjectUtil;
 import org.keycloak.component.ComponentModel;
 import org.keycloak.models.LDAPConstants;
 import org.keycloak.models.ModelException;
@@ -64,7 +63,6 @@ public class GroupMapperConfig extends CommonLDAPGroupMapperConfig {
 
     // Keycloak group path the LDAP groups are added to (default: top level "/")
     public static final String LDAP_GROUPS_PATH = "groups.path";
-    public static final String DEFAULT_LDAP_GROUPS_PATH = "/";
 
     public GroupMapperConfig(ComponentModel mapperModel) {
         super(mapperModel);
@@ -131,8 +129,7 @@ public class GroupMapperConfig extends CommonLDAPGroupMapperConfig {
     }
 
     public String getGroupsPath() {
-        String groupsPath = mapperModel.getConfig().getFirst(LDAP_GROUPS_PATH);
-        return ObjectUtil.isBlank(groupsPath) ? DEFAULT_LDAP_GROUPS_PATH : groupsPath.trim();
+        return mapperModel.getConfig().getFirst(LDAP_GROUPS_PATH);
     }
 
     public String getGroupsPathWithTrailingSlash() {

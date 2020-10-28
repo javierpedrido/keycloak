@@ -47,10 +47,10 @@ public class MigrateTo2_1_0 implements Migration {
     }
 
     public void migrate(KeycloakSession session) {
-        session.realms().getRealmsStream().forEach(realm -> {
+        for (RealmModel realm : session.realms().getRealms()) {
             migrateDefaultRequiredAction(realm);
             migrateRolePolicies(realm, session);
-        });
+        }
     }
 
     @Override
@@ -74,7 +74,7 @@ public class MigrateTo2_1_0 implements Migration {
         AuthorizationProvider authorizationProvider = session.getProvider(AuthorizationProvider.class);
         StoreFactory storeFactory = authorizationProvider.getStoreFactory();
         PolicyStore policyStore = storeFactory.getPolicyStore();
-        realm.getClientsStream().forEach(clientModel -> {
+        realm.getClients().forEach(clientModel -> {
             ResourceServer resourceServer = storeFactory.getResourceServerStore().findById(clientModel.getId());
 
             if (resourceServer != null) {

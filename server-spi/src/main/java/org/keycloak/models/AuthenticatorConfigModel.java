@@ -18,7 +18,6 @@
 package org.keycloak.models;
 
 import java.io.Serializable;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -57,18 +56,5 @@ public class AuthenticatorConfigModel implements Serializable {
 
     public void setConfig(Map<String, String> config) {
         this.config = config;
-    }
-
-    public static class AuthenticationConfigComparator implements Comparator<AuthenticatorConfigModel> {
-        public static final AuthenticatorConfigModel.AuthenticationConfigComparator SINGLETON =
-                new AuthenticatorConfigModel.AuthenticationConfigComparator();
-
-        @Override
-        public int compare(AuthenticatorConfigModel left, AuthenticatorConfigModel right) {
-            //ensure consistent ordering of authenticationFlows.
-            String l = left.getAlias() != null ? left.getAlias() : "\0";
-            String r = right.getAlias() != null ? right.getAlias() : "\0";
-            return l.compareTo(r);
-        }
     }
 }

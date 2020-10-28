@@ -19,8 +19,6 @@ package org.keycloak.services.resources;
 import org.jboss.logging.Logger;
 import org.keycloak.common.Version;
 import org.keycloak.common.util.MimeTypeUtil;
-import org.keycloak.encoding.ResourceEncodingHelper;
-import org.keycloak.encoding.ResourceEncodingProvider;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.services.ServicesLogger;
 import org.keycloak.services.util.CacheControlUtil;
@@ -31,7 +29,6 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
-import java.io.File;
 import java.io.InputStream;
 
 /**
@@ -41,6 +38,8 @@ import java.io.InputStream;
  */
 @Path("/resources")
 public class ThemeResource {
+
+    protected static final Logger logger = Logger.getLogger(ThemeResource.class);
 
     @Context
     private KeycloakSession session;
@@ -61,23 +60,10 @@ public class ThemeResource {
         }
 
         try {
-            String contentType = MimeTypeUtil.getContentType(path);
             Theme theme = session.theme().getTheme(themeName, Theme.Type.valueOf(themType.toUpperCase()));
-            ResourceEncodingProvider encodingProvider = session.theme().isCacheEnabled() ? ResourceEncodingHelper.getResourceEncodingProvider(session, contentType) : null;
-
-            InputStream resource;
-            if (encodingProvider != null) {
-                resource = encodingProvider.getEncodedStream(() -> theme.getResourceAsStream(path), themType, themeName, path.replace('/', File.separatorChar));
-            } else {
-                resource = theme.getResourceAsStream(path);
-            }
-
+            InputStream resource = theme.getResourceAsStream(path);
             if (resource != null) {
-                Response.ResponseBuilder rb = Response.ok(resource).type(contentType).cacheControl(CacheControlUtil.getDefaultCacheControl());
-                if (encodingProvider != null) {
-                    rb.encoding(encodingProvider.getEncoding());
-                }
-                return rb.build();
+                return Response.ok(resource).type(MimeTypeUtil.getContentType(path)).cacheControl(CacheControlUtil.getDefaultCacheControl()).build();
             } else {
                 return Response.status(Response.Status.NOT_FOUND).build();
             }

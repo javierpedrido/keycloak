@@ -36,7 +36,7 @@ public class WildflyPlatform implements PlatformProvider {
 
     @Override
     public void exit(Throwable cause) {
-        ServicesLogger.LOGGER.fatal("Error during startup", cause);
+        ServicesLogger.LOGGER.fatal(cause);
         exit(1);
     }
 

@@ -50,7 +50,7 @@ import org.apache.directory.server.core.api.interceptor.context.SearchOperationC
  */
 public class RangedAttributeInterceptor extends BaseInterceptor {
 
-    private static class RangedEntryFilteringCursor implements EntryFilteringCursor {
+    private class RangedEntryFilteringCursor implements EntryFilteringCursor {
 
         private final EntryFilteringCursor c;
         private final String name;

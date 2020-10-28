@@ -19,11 +19,15 @@ package org.keycloak.migration.migrators;
 
 import org.keycloak.migration.ModelVersion;
 import org.keycloak.models.AuthenticationFlowModel;
+import org.keycloak.models.ClientModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.OTPPolicy;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.utils.DefaultAuthenticationFlows;
+import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.representations.idm.RealmRepresentation;
+
+import java.util.List;
 
 /**
  * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
@@ -37,15 +41,19 @@ public class MigrateTo1_5_0 implements Migration {
     }
 
     public void migrate(KeycloakSession session) {
-        session.realms().getRealmsStream().forEach(realm -> migrateRealm(session, realm));
+        List<RealmModel> realms = session.realms().getRealms();
+        for (RealmModel realm : realms) {
+            migrateRealm(realm);
+        }
+
     }
 
     @Override
     public void migrateImport(KeycloakSession session, RealmModel realm, RealmRepresentation rep, boolean skipUserDependent) {
-        migrateRealm(session, realm);
+        migrateRealm(realm);
     }
 
-    protected void migrateRealm(KeycloakSession session, RealmModel realm) {
+    protected void migrateRealm(RealmModel realm) {
         DefaultAuthenticationFlows.migrateFlows(realm); // add reset credentials flo
         realm.setOTPPolicy(OTPPolicy.DEFAULT_POLICY);
         realm.setBrowserFlow(realm.getFlowByAlias(DefaultAuthenticationFlows.BROWSER_FLOW));
@@ -66,6 +74,8 @@ public class MigrateTo1_5_0 implements Migration {
             realm.setClientAuthenticationFlow(clientAuthFlow);
         }
 
-        realm.getClientsStream().forEach(MigrationUtils::setDefaultClientAuthenticatorType);
+        for (ClientModel client : realm.getClients()) {
+            client.setClientAuthenticatorType(KeycloakModelUtils.getDefaultClientAuthenticatorType());
+        }
     }
 }

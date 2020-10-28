@@ -60,7 +60,7 @@
               responseMode: 'query',
               onLoad: 'check-sso',
               redirectUri: 'android-app://org.keycloak.examples.cordova/https/keycloak-cordova-example.github.io/login'
-            }).then(updateState).catch(error);
+            }).success(updateState).error(error);
         }, false);
     </script>
     <style>

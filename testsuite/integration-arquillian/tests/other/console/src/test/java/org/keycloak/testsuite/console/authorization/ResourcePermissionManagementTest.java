@@ -75,7 +75,7 @@ public class ResourcePermissionManagementTest extends AbstractAuthorizationSetti
         policyC.setName("Policy C");
         policyC.addUser("test");
 
-        policies.user().create(policyC).close();
+        policies.user().create(policyC);
 
         ResourcesResource resources = authorization.resources();
 

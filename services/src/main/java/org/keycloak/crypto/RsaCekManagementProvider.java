@@ -19,7 +19,6 @@ package org.keycloak.crypto;
 
 import org.keycloak.jose.jwe.JWEConstants;
 import org.keycloak.jose.jwe.alg.JWEAlgorithmProvider;
-import org.keycloak.jose.jwe.alg.RsaKeyEncryption256JWEAlgorithmProvider;
 import org.keycloak.jose.jwe.alg.RsaKeyEncryptionJWEAlgorithmProvider;
 import org.keycloak.models.KeycloakSession;
 
@@ -40,8 +39,6 @@ public class RsaCekManagementProvider implements CekManagementProvider {
             jcaAlgorithmName = "RSA/ECB/PKCS1Padding";
         } else if (JWEConstants.RSA_OAEP.equals(jweAlgorithmName)) {
             jcaAlgorithmName = "RSA/ECB/OAEPWithSHA-1AndMGF1Padding";
-        } else if (JWEConstants.RSA_OAEP_256.equals(jweAlgorithmName)) {
-            return new RsaKeyEncryption256JWEAlgorithmProvider("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
         }
         return new RsaKeyEncryptionJWEAlgorithmProvider(jcaAlgorithmName);
     }

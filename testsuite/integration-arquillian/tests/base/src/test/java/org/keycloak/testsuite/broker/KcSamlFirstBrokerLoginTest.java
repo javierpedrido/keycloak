@@ -12,6 +12,7 @@ public class KcSamlFirstBrokerLoginTest extends AbstractFirstBrokerLoginTest {
         return KcSamlBrokerConfiguration.INSTANCE;
     }
 
+
     @Test
     @Override
     public void testUpdateProfileIfNotMissingInformation() {

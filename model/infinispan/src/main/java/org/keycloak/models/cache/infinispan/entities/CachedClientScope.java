@@ -26,7 +26,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
@@ -51,7 +50,9 @@ public class CachedClientScope extends AbstractRevisioned implements InRealm {
         for (ProtocolMapperModel mapper : model.getProtocolMappers()) {
             this.protocolMappers.add(mapper);
         }
-        scope.addAll(model.getScopeMappingsStream().map(RoleModel::getId).collect(Collectors.toSet()));
+        for (RoleModel role : model.getScopeMappings())  {
+            scope.add(role.getId());
+        }
         attributes.putAll(model.getAttributes());
     }
 

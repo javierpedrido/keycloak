@@ -50,8 +50,6 @@ public interface OAuth2Constants {
 
     String REFRESH_TOKEN = "refresh_token";
 
-    String LOGOUT_TOKEN = "logout_token";
-
     String AUTHORIZATION_CODE = "authorization_code";
 
 

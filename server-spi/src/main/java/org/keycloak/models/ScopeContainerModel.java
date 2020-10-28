@@ -18,8 +18,6 @@
 package org.keycloak.models;
 
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
@@ -27,34 +25,13 @@ import java.util.stream.Stream;
  */
 public interface ScopeContainerModel {
 
-    @Deprecated
-    default Set<RoleModel> getScopeMappings() {
-        return getScopeMappingsStream().collect(Collectors.toSet());
-    }
-
-    Stream<RoleModel> getScopeMappingsStream();
-
-    /**
-     * From the scope mappings returned by {@link #getScopeMappings()} returns only those
-     * that belong to the realm that owns this scope container.
-     * @return set of {@link RealmModel}
-     * @deprecated Use {@link #getRealmScopeMappingsStream()} getRealmScopeMappingsStream} instead.
-     */
-    @Deprecated
-    default Set<RoleModel> getRealmScopeMappings() {
-        return getRealmScopeMappingsStream().collect(Collectors.toSet());
-    }
-
-    /**
-     * From the scope mappings returned by {@link #getScopeMappingsStream()} ()} returns only those
-     * that belong to the realm that owns this scope container.
-     * @return stream of {@link RoleModel}
-     */
-    Stream<RoleModel> getRealmScopeMappingsStream();
+    Set<RoleModel> getScopeMappings();
 
     void addScopeMapping(RoleModel role);
 
     void deleteScopeMapping(RoleModel role);
+
+    Set<RoleModel> getRealmScopeMappings();
 
     boolean hasScope(RoleModel role);
 

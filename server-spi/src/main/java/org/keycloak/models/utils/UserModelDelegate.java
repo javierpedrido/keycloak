@@ -25,7 +25,6 @@ import org.keycloak.models.UserModel;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Stream;
 
 /**
  * Delegation pattern.  Used to proxy UserModel implementations.
@@ -161,13 +160,13 @@ public class UserModelDelegate implements UserModel {
     }
 
     @Override
-    public Stream<RoleModel> getRealmRoleMappingsStream() {
-        return delegate.getRealmRoleMappingsStream();
+    public Set<RoleModel> getRealmRoleMappings() {
+        return delegate.getRealmRoleMappings();
     }
 
     @Override
-    public Stream<RoleModel> getClientRoleMappingsStream(ClientModel app) {
-        return delegate.getClientRoleMappingsStream(app);
+    public Set<RoleModel> getClientRoleMappings(ClientModel app) {
+        return delegate.getClientRoleMappings(app);
     }
 
     @Override
@@ -181,8 +180,8 @@ public class UserModelDelegate implements UserModel {
     }
 
     @Override
-    public Stream<RoleModel> getRoleMappingsStream() {
-        return delegate.getRoleMappingsStream();
+    public Set<RoleModel> getRoleMappings() {
+        return delegate.getRoleMappings();
     }
 
     @Override
@@ -225,8 +224,8 @@ public class UserModelDelegate implements UserModel {
     }
 
     @Override
-    public Stream<GroupModel> getGroupsStream() {
-        return delegate.getGroupsStream();
+    public Set<GroupModel> getGroups() {
+        return delegate.getGroups();
     }
 
     @Override

@@ -46,7 +46,6 @@ import static org.keycloak.testsuite.saml.AbstractSamlTest.REALM_PRIVATE_KEY;
 import static org.keycloak.testsuite.saml.AbstractSamlTest.REALM_PUBLIC_KEY;
 import static org.keycloak.testsuite.util.Matchers.bodyHC;
 import static org.keycloak.testsuite.util.Matchers.statusCodeIsHC;
-import static org.keycloak.testsuite.util.UIUtils.getRawPageSource;
 import static org.keycloak.testsuite.util.URLAssert.assertCurrentUrlStartsWith;
 import static org.keycloak.testsuite.util.WaitUtils.waitForPageToLoad;
 import static org.keycloak.testsuite.util.WaitUtils.waitUntilElement;
@@ -198,7 +197,7 @@ public class SAMLLoginResponseHandlingTest extends AbstractSAMLServletAdapterTes
 
         driver.navigate().to(employee2ServletPage.getUriBuilder().clone().path("getAssertionFromDocument").build().toURL());
         waitForPageToLoad();
-        Assert.assertEquals("", getRawPageSource());
+        Assert.assertEquals("", driver.getPageSource());
 
         employee2ServletPage.logout();
         checkLoggedOut(employee2ServletPage, testRealmSAMLPostLoginPage);

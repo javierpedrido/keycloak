@@ -20,13 +20,17 @@ import org.jboss.logging.Logger;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.services.managers.AuthenticationManager;
+import org.keycloak.services.util.CookieHelper;
 import org.keycloak.sessions.AuthenticationSessionModel;
+import org.keycloak.storage.ReadOnlyException;
 
 import javax.ws.rs.core.Cookie;
 import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.UriInfo;
 import java.util.List;
 import java.util.Locale;
-import java.util.stream.Collectors;
+import java.util.Set;
 
 public class DefaultLocaleSelectorProvider implements LocaleSelectorProvider {
 
@@ -164,19 +168,19 @@ public class DefaultLocaleSelectorProvider implements LocaleSelectorProvider {
     }
 
     private Locale findLocale(RealmModel realm, String... localeStrings) {
-        List<Locale> supportedLocales = realm.getSupportedLocalesStream()
-                .map(Locale::forLanguageTag).collect(Collectors.toList());
+        Set<String> supportedLocales = realm.getSupportedLocales();
         for (String localeString : localeStrings) {
             if (localeString != null) {
                 Locale result = null;
                 Locale search = Locale.forLanguageTag(localeString);
-                for (Locale supportedLocale : supportedLocales) {
-                    if (supportedLocale.getLanguage().equals(search.getLanguage())) {
-                        if (search.getCountry().equals("") ^ supportedLocale.getCountry().equals("") && result == null) {
-                            result = supportedLocale;
+                for (String languageTag : supportedLocales) {
+                    Locale locale = Locale.forLanguageTag(languageTag);
+                    if (locale.getLanguage().equals(search.getLanguage())) {
+                        if (search.getCountry().equals("") ^ locale.getCountry().equals("") && result == null) {
+                            result = locale;
                         }
-                        if (supportedLocale.getCountry().equals(search.getCountry())) {
-                            return supportedLocale;
+                        if (locale.getCountry().equals(search.getCountry())) {
+                            return locale;
                         }
                     }
                 }

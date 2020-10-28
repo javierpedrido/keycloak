@@ -52,8 +52,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Predicate;
-import java.util.stream.Stream;
 
 /**
  * @resource Groups
@@ -103,10 +101,11 @@ public class GroupResource {
     public Response updateGroup(GroupRepresentation rep) {
         this.auth.groups().requireManage(group);
 
-        boolean exists = siblings().filter(s -> !Objects.equals(s.getId(), group.getId()))
-                .anyMatch(s -> Objects.equals(s.getName(), rep.getName()));
-        if (exists) {
-            return ErrorResponse.exists("Sibling group named '" + rep.getName() + "' already exists.");
+        for (GroupModel sibling: siblings()) {
+            if (Objects.equals(sibling.getId(), group.getId())) continue;
+            if (sibling.getName().equals(rep.getName())) {
+                return ErrorResponse.exists("Sibling group named '" + rep.getName() + "' already exists.");
+            }
         }
         
         updateGroup(rep, group);
@@ -115,11 +114,11 @@ public class GroupResource {
         return Response.noContent().build();
     }
     
-    private Stream<GroupModel> siblings() {
+    private List<GroupModel> siblings() {
         if (group.getParentId() == null) {
-            return realm.getTopLevelGroupsStream();
+            return realm.getTopLevelGroups();
         } else {
-            return group.getParent().getSubGroupsStream();
+            return new ArrayList(group.getParent().getSubGroups());
         }
     }
 
@@ -145,6 +144,12 @@ public class GroupResource {
     @Consumes(MediaType.APPLICATION_JSON)
     public Response addChild(GroupRepresentation rep) {
         this.auth.groups().requireManage(group);
+
+        for (GroupModel group : group.getSubGroups()) {
+            if (group.getName().equals(rep.getName())) {
+                return ErrorResponse.exists("Parent already contains subgroup named '" + rep.getName() + "'");
+            }
+        }
 
         Response.ResponseBuilder builder = Response.status(204);
         GroupModel child = null;

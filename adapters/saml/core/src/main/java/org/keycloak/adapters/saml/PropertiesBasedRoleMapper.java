@@ -113,8 +113,8 @@ public class PropertiesBasedRoleMapper implements RoleMappingsProvider {
         if (path != null) {
             File file = new File(path);
             if (file.exists()) {
-                try (FileInputStream is = new FileInputStream(file)){
-                    this.roleMappings.load(is);
+                try {
+                    this.roleMappings.load(new FileInputStream(file));
                     logger.debugf("Successfully loaded role mappings from %s", path);
                 } catch (Exception e) {
                     logger.debugv(e, "Unable to load role mappings from %s", path);

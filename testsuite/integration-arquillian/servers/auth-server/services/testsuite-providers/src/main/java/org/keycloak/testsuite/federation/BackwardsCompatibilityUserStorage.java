@@ -378,7 +378,7 @@ public class BackwardsCompatibilityUserStorage implements UserLookupProvider, Us
     }
 
 
-    static class MyUser {
+    class MyUser {
 
         private String username;
         private CredentialModel hashedPassword;

@@ -35,6 +35,7 @@ import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.KeycloakSessionTask;
 import org.keycloak.models.KeycloakTransaction;
 import org.keycloak.models.RealmModel;
+import org.keycloak.models.RoleContainerModel;
 import org.keycloak.models.RoleModel;
 import org.keycloak.models.ScopeContainerModel;
 import org.keycloak.models.UserCredentialModel;
@@ -56,12 +57,8 @@ import java.security.cert.X509Certificate;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * Set of helper methods, which are useful in various model implementations.
@@ -190,9 +187,12 @@ public final class KeycloakModelUtils {
             return false;
         }
 
-        Set<RoleModel> compositeRoles = composite.getCompositesStream().collect(Collectors.toSet());
+        Set<RoleModel> compositeRoles = composite.getComposites();
         return compositeRoles.contains(role) ||
-                        compositeRoles.stream().anyMatch(x -> x.isComposite() && searchFor(role, x, visited));
+                        compositeRoles.stream()
+                                .filter(x -> x.isComposite() && searchFor(role, x, visited))
+                                .findFirst()
+                                .isPresent();
     }
 
     /**
@@ -295,17 +295,21 @@ public final class KeycloakModelUtils {
             return null;
         }
 
-        return realm.getUserStorageProvidersStream()
-                .filter(fedProvider -> Objects.equals(fedProvider.getName(), displayName))
-                .findFirst()
-                .orElse(null);
+        for (UserStorageProviderModel fedProvider : realm.getUserStorageProviders()) {
+            if (displayName.equals(fedProvider.getName())) {
+                return fedProvider;
+            }
+        }
+        return null;
     }
 
     public static UserStorageProviderModel findUserStorageProviderById(String fedProviderId, RealmModel realm) {
-        return realm.getUserStorageProvidersStream()
-                .filter(fedProvider -> Objects.equals(fedProvider.getId(), fedProviderId))
-                .findFirst()
-                .orElse(null);
+        for (UserStorageProviderModel fedProvider : realm.getUserStorageProviders()) {
+            if (fedProviderId.equals(fedProvider.getId())) {
+                return fedProvider;
+            }
+        }
+        return null;
     }
 
     public static ComponentModel createComponentModel(String name, String parentId, String providerId, String providerType, String... config) {
@@ -359,14 +363,15 @@ public final class KeycloakModelUtils {
      * @param result input should be empty list. At the end will be all executions added to this list
      */
     public static void deepFindAuthenticationExecutions(RealmModel realm, AuthenticationFlowModel flow, List<AuthenticationExecutionModel> result) {
-        realm.getAuthenticationExecutionsStream(flow.getId()).forEachOrdered(execution -> {
+        List<AuthenticationExecutionModel> executions = realm.getAuthenticationExecutions(flow.getId());
+        for (AuthenticationExecutionModel execution : executions) {
             if (execution.isAuthenticatorFlow()) {
                 AuthenticationFlowModel subFlow = realm.getAuthenticationFlowById(execution.getFlowId());
                 deepFindAuthenticationExecutions(realm, subFlow, result);
             } else {
                 result.add(execution);
             }
-        });
+        }
     }
 
     public static String resolveFirstAttribute(GroupModel group, String name) {
@@ -377,11 +382,30 @@ public final class KeycloakModelUtils {
 
     }
 
+    /**
+     *
+     *
+     * @param user
+     * @param name
+     * @return
+     */
+    public static String resolveFirstAttribute(UserModel user, String name) {
+        String value = user.getFirstAttribute(name);
+        if (value != null) return value;
+        for (GroupModel group : user.getGroups()) {
+            value = resolveFirstAttribute(group, name);
+            if (value != null) return value;
+        }
+        return null;
+
+    }
+
     public static List<String>  resolveAttribute(GroupModel group, String name) {
-        List<String> values = group.getAttributeStream(name).collect(Collectors.toList());
-        if (!values.isEmpty()) return values;
+        List<String> values = group.getAttribute(name);
+        if (values != null && !values.isEmpty()) return values;
         if (group.getParentId() == null) return null;
         return resolveAttribute(group.getParent(), name);
+
     }
 
 
@@ -394,24 +418,21 @@ public final class KeycloakModelUtils {
             }
             aggrValues.addAll(values);
         }
-        Stream<List<String>> attributes = user.getGroupsStream()
-                .map(group -> resolveAttribute(group, name))
-                .filter(Objects::nonNull)
-                .filter(attr -> !attr.isEmpty());
-
-        if (!aggregateAttrs) {
-            Optional<List<String>> first = attributes.findFirst();
-            if (first.isPresent()) return first.get();
-        } else {
-            aggrValues.addAll(attributes.flatMap(Collection::stream).collect(Collectors.toSet()));
+        for (GroupModel group : user.getGroups()) {
+            values = resolveAttribute(group, name);
+            if (values != null && !values.isEmpty()) {
+                if (!aggregateAttrs) {
+                    return values;
+                }
+                aggrValues.addAll(values);
+            }
         }
-
         return aggrValues;
     }
 
 
     private static GroupModel findSubGroup(String[] segments, int index, GroupModel parent) {
-        return parent.getSubGroupsStream().map(group -> {
+        for (GroupModel group : parent.getSubGroups()) {
             String groupName = group.getName();
             String[] pathSegments = formatPathSegments(segments, index, groupName);
 
@@ -423,11 +444,14 @@ public final class KeycloakModelUtils {
                     if (index + 1 < pathSegments.length) {
                         GroupModel found = findSubGroup(pathSegments, index + 1, group);
                         if (found != null) return found;
+                    } else {
+                        return null;
                     }
                 }
+
             }
-            return null;
-        }).filter(Objects::nonNull).findFirst().orElse(null);
+        }
+        return null;
     }
 
     /**
@@ -480,42 +504,41 @@ public final class KeycloakModelUtils {
         }
         String[] split = path.split("/");
         if (split.length == 0) return null;
-
-        return realm.getTopLevelGroupsStream().map(group -> {
+        GroupModel found = null;
+        for (GroupModel group : realm.getTopLevelGroups()) {
             String groupName = group.getName();
             String[] pathSegments = formatPathSegments(split, 0, groupName);
 
             if (groupName.equals(pathSegments[0])) {
                 if (pathSegments.length == 1) {
-                    return group;
+                    found = group;
+                    break;
                 }
                 else {
                     if (pathSegments.length > 1) {
-                        GroupModel subGroup = findSubGroup(pathSegments, 1, group);
-                        if (subGroup != null) return subGroup;
+                        found = findSubGroup(pathSegments, 1, group);
+                        if (found != null) break;
                     }
                 }
 
             }
-            return null;
-        }).filter(Objects::nonNull).findFirst().orElse(null);
+        }
+        return found;
     }
 
-    /**
-     * @deprecated Use {@link #getClientScopeMappingsStream(ClientModel, ScopeContainerModel)}  getClientScopeMappingsStream} instead.
-     * @param client {@link ClientModel}
-     * @param container {@link ScopeContainerModel}
-     * @return
-     */
-    @Deprecated
     public static Set<RoleModel> getClientScopeMappings(ClientModel client, ScopeContainerModel container) {
-        return getClientScopeMappingsStream(client, container).collect(Collectors.toSet());
-    }
+        Set<RoleModel> mappings = container.getScopeMappings();
+        Set<RoleModel> result = new HashSet<>();
+        for (RoleModel role : mappings) {
+            RoleContainerModel roleContainer = role.getContainer();
+            if (roleContainer instanceof ClientModel) {
+                if (client.getId().equals(((ClientModel)roleContainer).getId())) {
+                    result.add(role);
+                }
 
-    public static Stream<RoleModel> getClientScopeMappingsStream(ClientModel client, ScopeContainerModel container) {
-        return container.getScopeMappingsStream()
-                .filter(role -> role.getContainer() instanceof ClientModel &&
-                        Objects.equals(client.getId(), role.getContainer().getId()));
+            }
+        }
+        return result;
     }
 
     // Used in various role mappers
@@ -569,27 +592,40 @@ public final class KeycloakModelUtils {
         if ((realmFlow = realm.getResetCredentialsFlow()) != null && realmFlow.getId().equals(model.getId())) return true;
         if ((realmFlow = realm.getDockerAuthenticationFlow()) != null && realmFlow.getId().equals(model.getId())) return true;
 
-        return realm.getIdentityProvidersStream().anyMatch(idp ->
-                Objects.equals(idp.getFirstBrokerLoginFlowId(), model.getId()) ||
-                Objects.equals(idp.getPostBrokerLoginFlowId(), model.getId()));
+        for (IdentityProviderModel idp : realm.getIdentityProviders()) {
+            if (model.getId().equals(idp.getFirstBrokerLoginFlowId())) return true;
+            if (model.getId().equals(idp.getPostBrokerLoginFlowId())) return true;
+        }
+
+        return false;
+
     }
 
     public static boolean isClientScopeUsed(RealmModel realm, ClientScopeModel clientScope) {
-        return realm.getClientsStream()
-                .filter(c -> (c.getClientScopes(true, false).containsKey(clientScope.getName())) ||
-                (c.getClientScopes(false, false).containsKey(clientScope.getName())))
-                .findFirst().isPresent();
+        for (ClientModel client : realm.getClients()) {
+            if ((client.getClientScopes(true, false).containsKey(clientScope.getName())) ||
+                    (client.getClientScopes(false, false).containsKey(clientScope.getName()))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static ClientScopeModel getClientScopeByName(RealmModel realm, String clientScopeName) {
-        return realm.getClientScopesStream()
-                .filter(clientScope -> Objects.equals(clientScopeName, clientScope.getName()))
-                .findFirst()
-                // check if we are referencing a client instead of a scope
-                .orElse(realm.getClientsStream()
-                        .filter(c -> Objects.equals(clientScopeName, c.getClientId()))
-                        .findFirst()
-                        .orElse(null));
+        for (ClientScopeModel clientScope : realm.getClientScopes()) {
+            if (clientScopeName.equals(clientScope.getName())) {
+                return clientScope;
+            }
+        }
+        // check if we are referencing a client instead of a scope
+        if (realm.getClients() != null) {
+            for (ClientModel client : realm.getClients()) {
+                if (clientScopeName.equals(client.getClientId())) {
+                    return client;
+                }
+            }
+        }
+        return null;
     }
 
     /**

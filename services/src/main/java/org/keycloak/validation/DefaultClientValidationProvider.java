@@ -17,7 +17,6 @@
 package org.keycloak.validation;
 
 import org.keycloak.models.ClientModel;
-import org.keycloak.protocol.oidc.OIDCAdvancedConfigWrapper;
 import org.keycloak.services.util.ResolveRelative;
 
 import java.net.MalformedURLException;
@@ -48,13 +47,8 @@ public class DefaultClientValidationProvider implements ClientValidationProvider
         String resolvedRootUrl = ResolveRelative.resolveRootUrl(authServerUrl, authServerUrl, client.getRootUrl());
         String resolvedBaseUrl = ResolveRelative.resolveRelativeUri(authServerUrl, authServerUrl, resolvedRootUrl, client.getBaseUrl());
 
-        String backchannelLogoutUrl = OIDCAdvancedConfigWrapper.fromClientModel(client).getBackchannelLogoutUrl();
-        String resolvedBackchannelLogoutUrl =
-                ResolveRelative.resolveRelativeUri(authServerUrl, authServerUrl, resolvedRootUrl, backchannelLogoutUrl);
-
         validateRootUrl(resolvedRootUrl);
         validateBaseUrl(resolvedBaseUrl);
-        validateBackchannelLogoutUrl(resolvedBackchannelLogoutUrl);
     }
 
     private void validateRootUrl(String rootUrl) throws ValidationException {
@@ -66,12 +60,6 @@ public class DefaultClientValidationProvider implements ClientValidationProvider
     private void validateBaseUrl(String baseUrl) throws ValidationException {
         if (baseUrl != null && !baseUrl.isEmpty()) {
             basicHttpUrlCheck("baseUrl", baseUrl);
-        }
-    }
-
-    private void validateBackchannelLogoutUrl(String backchannelLogoutUrl) throws ValidationException {
-        if (backchannelLogoutUrl != null && !backchannelLogoutUrl.isEmpty()) {
-            basicHttpUrlCheck("backchannelLogoutUrl", backchannelLogoutUrl);
         }
     }
 
@@ -91,7 +79,7 @@ public class DefaultClientValidationProvider implements ClientValidationProvider
         }
     }
 
-    static class ValidationException extends Exception {
+    class ValidationException extends Exception {
 
         public ValidationException(String message) {
             super(message, null, false, false);

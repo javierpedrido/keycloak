@@ -16,7 +16,6 @@
  */
 package org.keycloak.testsuite.arquillian;
 
-import org.apache.commons.io.filefilter.WildcardFileFilter;
 import org.apache.commons.lang.StringUtils;
 import org.jboss.arquillian.container.spi.ContainerRegistry;
 import org.jboss.arquillian.container.spi.client.container.LifecycleException;
@@ -67,7 +66,6 @@ import org.wildfly.extras.creaper.core.online.operations.Operations;
 import org.wildfly.extras.creaper.core.online.operations.admin.Administration;
 
 import java.io.File;
-import java.io.FileFilter;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -328,17 +326,6 @@ public class AuthServerTestEnricher {
         CrossDCTestEnricher.initializeSuiteContext(suiteContext);
         log.info("\n\n" + suiteContext);
         log.info("\n\n" + SystemInfoHelper.getSystemInfo());
-
-        // Remove all map storages present in target directory
-        // This is useful for example in intellij where target directory is not removed between test runs
-        File dir = new File(System.getProperty("project.build.directory", "target"));
-        FileFilter fileFilter = new WildcardFileFilter("map-*.json");
-        File[] files = dir.listFiles(fileFilter);
-        if (files != null) {
-            for (File f : files) {
-                f.delete();
-            }
-        }
     }
 
     private ContainerInfo updateWithAuthServerInfo(ContainerInfo authServerInfo) {

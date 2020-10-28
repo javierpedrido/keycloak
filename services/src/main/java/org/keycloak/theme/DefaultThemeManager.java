@@ -94,11 +94,6 @@ public class DefaultThemeManager implements ThemeManager {
     }
 
     @Override
-    public boolean isCacheEnabled() {
-        return factory.isCacheEnabled();
-    }
-
-    @Override
     public void clearCache() {
         factory.clearCache();
     }

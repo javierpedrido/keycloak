@@ -39,7 +39,6 @@ import org.jboss.logging.Logger;
 import org.jboss.resteasy.plugins.server.servlet.ResteasyContextParameters;
 import org.jboss.resteasy.plugins.server.undertow.UndertowJaxrsServer;
 import org.jboss.resteasy.spi.ResteasyDeployment;
-import org.jboss.resteasy.spi.ResteasyProviderFactory;
 import org.jboss.shrinkwrap.api.Archive;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
 import org.jboss.shrinkwrap.descriptor.api.Descriptor;
@@ -51,7 +50,7 @@ import org.keycloak.services.managers.ApplianceBootstrap;
 import org.keycloak.services.resources.KeycloakApplication;
 import org.keycloak.testsuite.JsonConfigProviderFactory;
 import org.keycloak.testsuite.KeycloakServer;
-import org.keycloak.testsuite.UndertowRequestFilter;
+import org.keycloak.testsuite.UndertowClientConnectionServletFilter;
 import org.keycloak.testsuite.utils.tls.TLSUtils;
 import org.keycloak.testsuite.utils.undertow.UndertowDeployerHelper;
 import org.keycloak.testsuite.utils.undertow.UndertowWarClassLoader;
@@ -84,9 +83,6 @@ public class KeycloakOnUndertow implements DeployableContainer<KeycloakOnUnderto
         // RESTEASY-2034
         deployment.setProperty(ResteasyContextParameters.RESTEASY_DISABLE_HTML_SANITIZER, true);
 
-        // Prevent double gzip encoding of resources
-        deployment.getDisabledProviderClasses().add("org.jboss.resteasy.plugins.interceptors.encoding.GZIPEncodingInterceptor");
-
         DeploymentInfo di = undertow.undertowDeployment(deployment);
         di.setClassLoader(getClass().getClassLoader());
         di.setContextPath("/auth");
@@ -103,7 +99,7 @@ public class KeycloakOnUndertow implements DeployableContainer<KeycloakOnUnderto
         di.setDefaultServletConfig(new DefaultServletConfig(true));
         di.addWelcomePage("theme/keycloak/welcome/resources/index.html");
 
-        FilterInfo filter = Servlets.filter("SessionFilter", UndertowRequestFilter.class);
+        FilterInfo filter = Servlets.filter("SessionFilter", UndertowClientConnectionServletFilter.class);
         di.addFilter(filter);
         di.addFilterUrlMapping("SessionFilter", "/*", DispatcherType.REQUEST);
         filter.setAsyncSupported(true);

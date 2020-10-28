@@ -34,8 +34,6 @@ import org.keycloak.testsuite.arquillian.annotation.ModelTest;
 
 import java.util.HashSet;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static org.keycloak.testsuite.admin.AbstractAdminTest.loadJson;
 import org.keycloak.testsuite.arquillian.annotation.AuthServerContainerExclude.AuthServer;
@@ -53,15 +51,18 @@ public class CompositeRolesModelTest extends AbstractTestRealmKeycloakTest {
 
         Set<RoleModel> requestedRoles = new HashSet<>();
 
-        Set<RoleModel> roleMappings = user.getRoleMappingsStream().collect(Collectors.toSet());
-        Stream<RoleModel> scopeMappings = Stream.concat(application.getScopeMappingsStream(), application.getRolesStream());
+        Set<RoleModel> roleMappings = user.getRoleMappings();
+        Set<RoleModel> scopeMappings = application.getScopeMappings();
+        Set<RoleModel> appRoles = application.getRoles();
+        if (appRoles != null) scopeMappings.addAll(appRoles);
 
-        scopeMappings.forEach(scope -> roleMappings.forEach(role -> {
+        for (RoleModel role : roleMappings) {
             if (role.getContainer().equals(application)) requestedRoles.add(role);
-
-            Set<RoleModel> visited = new HashSet<>();
-            applyScope(role, scope, visited, requestedRoles);
-        }));
+            for (RoleModel desiredRole : scopeMappings) {
+                Set<RoleModel> visited = new HashSet<>();
+                applyScope(role, desiredRole, visited, requestedRoles);
+            }
+        }
         return requestedRoles;
     }
 
@@ -76,7 +77,9 @@ public class CompositeRolesModelTest extends AbstractTestRealmKeycloakTest {
         }
         if (!scope.isComposite()) return;
 
-        scope.getCompositesStream().forEach(contained -> applyScope(role, contained, visited, requested));
+        for (RoleModel contained : scope.getComposites()) {
+            applyScope(role, contained, visited, requested);
+        }
     }
 
     private static RoleModel getRole(RealmModel realm, String appName, String roleName) {

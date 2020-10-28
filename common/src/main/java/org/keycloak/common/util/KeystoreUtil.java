@@ -58,9 +58,8 @@ public class KeystoreUtil {
         } else {
             trustStream = new FileInputStream(new File(filename));
         }
-        try (InputStream is = trustStream) {
-            trustStore.load(is, password.toCharArray());
-        }
+        trustStore.load(trustStream, password.toCharArray());
+        trustStream.close();
         return trustStore;
     }
 

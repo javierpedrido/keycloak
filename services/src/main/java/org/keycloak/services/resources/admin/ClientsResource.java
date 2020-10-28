@@ -34,8 +34,6 @@ import org.keycloak.representations.idm.authorization.ResourceServerRepresentati
 import org.keycloak.services.ErrorResponse;
 import org.keycloak.services.ErrorResponseException;
 import org.keycloak.services.ForbiddenException;
-import org.keycloak.services.clientpolicy.AdminClientRegisterContext;
-import org.keycloak.services.clientpolicy.ClientPolicyException;
 import org.keycloak.services.managers.ClientManager;
 import org.keycloak.services.managers.RealmManager;
 import org.keycloak.services.resources.admin.permissions.AdminPermissionEvaluator;
@@ -56,9 +54,10 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.util.Objects;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
-import java.util.stream.Stream;
 
 import static java.lang.Boolean.TRUE;
 
@@ -99,57 +98,65 @@ public class ClientsResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @NoCache
-    public Stream<ClientRepresentation> getClients(@QueryParam("clientId") String clientId,
+    public List<ClientRepresentation> getClients(@QueryParam("clientId") String clientId,
                                                  @QueryParam("viewableOnly") @DefaultValue("false") boolean viewableOnly,
                                                  @QueryParam("search") @DefaultValue("false") boolean search,
                                                  @QueryParam("first") Integer firstResult,
                                                  @QueryParam("max") Integer maxResults) {
+        if (firstResult == null) {
+            firstResult = -1;
+        }
+        if (maxResults == null) {
+            maxResults = -1;
+        }
+
+        List<ClientRepresentation> rep = new ArrayList<>();
         boolean canView = auth.clients().canView();
-        Stream<ClientModel> clientModels = Stream.empty();
+        List<ClientModel> clientModels;
 
         if (clientId == null || clientId.trim().equals("")) {
-            clientModels = canView
-                    ? realm.getClientsStream(firstResult, maxResults)
-                    : realm.getClientsStream();
+            clientModels = canView ? realm.getClients(firstResult, maxResults) : realm.getClients();
             auth.clients().requireList();
-        } else if (search) {
-            clientModels = canView
-                    ? realm.searchClientByClientIdStream(clientId, firstResult, maxResults)
-                    : realm.searchClientByClientIdStream(clientId, -1, -1);
         } else {
-            ClientModel client = realm.getClientByClientId(clientId);
-            if (client != null) {
-                clientModels = Stream.of(client);
+            clientModels = Collections.emptyList();
+            if(search) {
+                clientModels = canView ? realm.searchClientByClientId(clientId, firstResult, maxResults) : realm.searchClientByClientId(clientId, -1, -1);
+            } else {
+                ClientModel client = realm.getClientByClientId(clientId);
+                if(client != null) {
+                    clientModels = Collections.singletonList(client);
+                }
             }
         }
 
-        Stream<ClientRepresentation> s = clientModels
-                .map(c -> {
-                    ClientRepresentation representation = null;
-                    if (canView || auth.clients().canView(c)) {
-                        representation = ModelToRepresentation.toRepresentation(c, session);
-                        representation.setAccess(auth.clients().getAccess(c));
-                    } else if (!viewableOnly && auth.clients().canView(c)) {
-                        representation = new ClientRepresentation();
-                        representation.setId(c.getId());
-                        representation.setClientId(c.getClientId());
-                        representation.setDescription(c.getDescription());
-                    }
+        int idx = 0;
 
-                    return representation;
-                })
-                .filter(Objects::nonNull);
-
-        if (!canView) {
-            if (firstResult != null && firstResult > 0) {
-                s = s.skip(firstResult);
+        for(ClientModel clientModel : clientModels) {
+            if (!canView) {
+                if (rep.size() == maxResults) {
+                    return rep;
+                }
             }
-            if (maxResults != null && maxResults > 0) {
-                s = s.limit(maxResults);
+
+            ClientRepresentation representation = null;
+
+            if (canView || auth.clients().canView(clientModel)) {
+                representation = ModelToRepresentation.toRepresentation(clientModel, session);
+                representation.setAccess(auth.clients().getAccess(clientModel));
+            } else if (!viewableOnly && auth.clients().canView(clientModel)) {
+                representation = new ClientRepresentation();
+                representation.setId(clientModel.getId());
+                representation.setClientId(clientModel.getClientId());
+                representation.setDescription(clientModel.getDescription());
+            }
+
+            if (representation != null) {
+                if (canView || idx++ >= firstResult) {
+                    rep.add(representation);
+                }
             }
         }
-
-        return s;
+        return rep;
     }
 
     private AuthorizationService getAuthorizationService(ClientModel clientModel) {
@@ -177,12 +184,6 @@ public class ClientsResource {
                     validationMessages.getStringMessages(messages),
                     Response.Status.BAD_REQUEST
             );
-        }
-
-        try {
-            session.clientPolicy().triggerOnEvent(new AdminClientRegisterContext(rep, auth.adminAuth()));
-        } catch (ClientPolicyException cpe) {
-            throw new ErrorResponseException(cpe.getError(), cpe.getErrorDetail(), Response.Status.BAD_REQUEST);
         }
 
         try {

@@ -21,7 +21,7 @@
     <parent>
         <groupId>org.keycloak.testsuite</groupId>
         <artifactId>integration-arquillian-tests</artifactId>
-        <version>12.0.0-SNAPSHOT</version>
+        <version>11.0.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -101,10 +101,6 @@
             <artifactId>guava</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.keycloak</groupId>
-            <artifactId>keycloak-model-map</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.keycloak.testsuite</groupId>
             <artifactId>integration-arquillian-servers-app-server-spi</artifactId>
             <version>${project.version}</version>
@@ -163,27 +159,7 @@
                     </execution>
                 </executions>
             </plugin>
-
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-antrun-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <phase>process-test-resources</phase>
-                        <goals>
-                            <goal>run</goal>
-                        </goals>
-                        <configuration>
-                            <target>
-                                <delete>
-                                    <fileset dir="${project.build.directory}" includes="map-*.json"/>
-                                </delete>
-                            </target>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>                        
-
+            
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
@@ -878,7 +854,7 @@
                 <app.server.port.offset>0</app.server.port.offset>
                 <app.server.http.port>8080</app.server.http.port>
                 <app.server.management.port>9990</app.server.management.port>
-                <app.server.keystore.dir>${app.server.home}/lib</app.server.keystore.dir>
+                <app.server.config.dir>${app.server.home}/conf</app.server.config.dir>
             </properties>
             <dependencies>
                 <dependency>
@@ -912,7 +888,7 @@
                 <app.server.port.offset>0</app.server.port.offset>
                 <app.server.http.port>8080</app.server.http.port>
                 <app.server.management.port>9990</app.server.management.port>
-                <app.server.keystore.dir>${app.server.home}/lib</app.server.keystore.dir>
+                <app.server.config.dir>${app.server.home}/conf</app.server.config.dir>
             </properties>
             <dependencies>
                 <dependency>
@@ -946,7 +922,7 @@
                 <app.server.port.offset>0</app.server.port.offset>
                 <app.server.http.port>8080</app.server.http.port>
                 <app.server.management.port>9990</app.server.management.port>
-                <app.server.keystore.dir>${app.server.home}/lib</app.server.keystore.dir>
+                <app.server.config.dir>${app.server.home}/conf</app.server.config.dir>
             </properties>
             <dependencies>
                 <dependency>
@@ -1006,7 +982,7 @@
                                     <configuration>
                                         <keystore>${app.server.keystore}</keystore>
                                         <storepass>${app.server.keystore.password}</storepass>
-                                        <alias>localhost3</alias>
+                                        <alias>localhost</alias>
                                         <skip>${app.server.skip.unpack}</skip>
                                     </configuration>
                                 </execution>
@@ -1066,47 +1042,10 @@
                                         <goal>copy-resources</goal>
                                     </goals>
                                     <configuration>
-                                        <outputDirectory>${app.server.keystore.dir}</outputDirectory>
+                                        <outputDirectory>${app.server.home}</outputDirectory>
                                         <resources>
                                             <resource>
                                                 <directory>${dependency.keystore.root}</directory>
-                                            </resource>
-                                        </resources>
-                                        <overwrite>true</overwrite>
-                                        <skip>${app.server.skip.unpack}</skip>
-                                    </configuration>
-                                </execution>
-                                <execution>
-                                    <id>copy-processed-truststore-to-secured-deployment-app-server-config</id>
-                                    <phase>process-test-resources</phase>
-                                    <goals>
-                                        <goal>copy-resources</goal>
-                                    </goals>
-                                    <configuration>
-                                        <outputDirectory>${app.server.home}/standalone-secured-deployments/configuration</outputDirectory>
-                                        <resources>
-                                            <resource>
-                                                <directory>${dependency.keystore.root}</directory>
-                                            </resource>
-                                        </resources>
-                                        <overwrite>true</overwrite>
-                                        <skip>${app.server.skip.unpack}</skip>
-                                    </configuration>
-                                </execution>
-                                <execution>
-                                    <id>copy-processed-keystore-to-secured-deployment-app-server-config</id>
-                                    <phase>process-test-resources</phase>
-                                    <goals>
-                                        <goal>copy-resources</goal>
-                                    </goals>
-                                    <configuration>
-                                        <outputDirectory>${app.server.home}/standalone-secured-deployments/configuration</outputDirectory>
-                                        <resources>
-                                            <resource>
-                                                <directory>${app.server.keystore.dir}</directory>
-                                                <includes>
-                                                    <include>adapter.jks</include>
-                                                </includes>
                                             </resource>
                                         </resources>
                                         <overwrite>true</overwrite>

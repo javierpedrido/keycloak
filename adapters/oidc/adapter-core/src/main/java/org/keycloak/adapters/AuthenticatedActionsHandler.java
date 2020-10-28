@@ -89,8 +89,7 @@ public class AuthenticatedActionsHandler {
              return true;
         }
         // Don't allow a CORS request if we're not validating CORS requests.
-        String origin = facade.getRequest().getHeader(CorsHeaders.ORIGIN);
-        if (!deployment.isCors() && origin != null && !origin.equals("null")) {
+        if (!deployment.isCors() && facade.getRequest().getHeader(CorsHeaders.ORIGIN) != null) {
             facade.getResponse().setStatus(200);
             facade.getResponse().end();
             return true;
@@ -102,7 +101,6 @@ public class AuthenticatedActionsHandler {
         if (!deployment.isCors()) return false;
         KeycloakSecurityContext securityContext = facade.getSecurityContext();
         String origin = facade.getRequest().getHeader(CorsHeaders.ORIGIN);
-        origin = "null".equals(origin) ? null : origin;
         String exposeHeaders = deployment.getCorsExposedHeaders();
 
         if (deployment.getPolicyEnforcer() != null) {

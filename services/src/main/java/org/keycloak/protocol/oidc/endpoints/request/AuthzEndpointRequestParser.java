@@ -30,7 +30,7 @@ import java.util.Set;
 /**
  * @author <a href="mailto:mposolda@redhat.com">Marek Posolda</a>
  */
-public abstract class AuthzEndpointRequestParser {
+abstract class AuthzEndpointRequestParser {
 
     private static final Logger logger = Logger.getLogger(AuthzEndpointRequestParser.class);
 
@@ -46,10 +46,8 @@ public abstract class AuthzEndpointRequestParser {
      */
     public static final int ADDITIONAL_REQ_PARAMS_MAX_SIZE = 200;
 
-    public static final String AUTHZ_REQUEST_OBJECT = "ParsedRequestObject";
-
     /** Set of known protocol GET params not to be stored into additionalReqParams} */
-    public static final Set<String> KNOWN_REQ_PARAMS = new HashSet<>();
+    private static final Set<String> KNOWN_REQ_PARAMS = new HashSet<>();
     static {
         KNOWN_REQ_PARAMS.add(OIDCLoginProtocol.CLIENT_ID_PARAM);
         KNOWN_REQ_PARAMS.add(OIDCLoginProtocol.RESPONSE_TYPE_PARAM);

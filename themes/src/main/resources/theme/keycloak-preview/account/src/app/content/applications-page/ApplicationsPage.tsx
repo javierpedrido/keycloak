@@ -26,10 +26,9 @@ import {
   DataListItemCells,
   Grid,
   GridItem,
-  Button,
 } from '@patternfly/react-core';
 
-import { InfoAltIcon, CheckIcon, BuilderImageIcon, ExternalLinkAltIcon } from '@patternfly/react-icons';
+import { InfoAltIcon, CheckIcon, BuilderImageIcon } from '@patternfly/react-icons';
 import { ContentPage } from '../ContentPage';
 import { ContinueCancelModal } from '../../widgets/ContinueCancelModal';
 import { HttpResponse } from '../../account-service/account.service';
@@ -116,33 +115,10 @@ export class ApplicationsPage extends React.Component<ApplicationsPageProps, App
   public render(): React.ReactNode {
     return (
       <ContentPage title={Msg.localize('applicationsPageTitle')}>
-        <DataList id="applications-list" aria-label={Msg.localize('applicationsPageTitle')} isCompact>
-          <DataListItem id="applications-list-header" aria-labelledby="Columns names">
-            <DataListItemRow>
-              // invisible toggle allows headings to line up properly
-              <span style={{ visibility: 'hidden' }}>
-                <DataListToggle
-                  isExpanded={false}
-                  id='applications-list-header-invisible-toggle'
-                  aria-controls="hidden"
-                />
-              </span>
-              <DataListItemCells
-                dataListCells={[
-                  <DataListCell key='applications-list-client-id-header' width={2}>
-                    <strong><Msg msgKey='applicaitonName' /></strong>
-                  </DataListCell>,
-                  <DataListCell key='applications-list-app-type-header' width={2}>
-                    <strong><Msg msgKey='applicationType' /></strong>
-                  </DataListCell>,
-                  <DataListCell key='applications-list-status' width={2}>
-                    <strong><Msg msgKey='status' /></strong>
-                  </DataListCell>,
-                ]}
-              />
-            </DataListItemRow>
-          </DataListItem>
+        <DataList id="applications-list" aria-label={Msg.localize('applicationsPageTitle')}>
           {this.state.applications.map((application: Application, appIndex: number) => {
+            const appUrl: string = application.effectiveUrl;
+
             return (
               <DataListItem id={this.elementId("client-id", application)} key={'application-' + appIndex} aria-labelledby="applications-list" isExpanded={this.state.isRowOpen[appIndex]}>
                 <DataListItemRow>
@@ -155,9 +131,7 @@ export class ApplicationsPage extends React.Component<ApplicationsPageProps, App
                   <DataListItemCells
                     dataListCells={[
                       <DataListCell id={this.elementId('name', application)} width={2} key={'app-' + appIndex}>
-                        <Button component="a" variant="link" onClick={() => window.open(application.effectiveUrl)}>
-                          {application.clientName || application.clientId} <ExternalLinkAltIcon/>
-                        </Button>
+                        <BuilderImageIcon size='sm' /> {application.clientName ? application.clientName : application.clientId}
                       </DataListCell>,
                       <DataListCell id={this.elementId('internal', application)} width={2} key={'internal-' + appIndex}>
                         {application.userConsentRequired ? Msg.localize('thirdPartyApp') : Msg.localize('internalApp')}
@@ -165,7 +139,13 @@ export class ApplicationsPage extends React.Component<ApplicationsPageProps, App
                       </DataListCell>,
                       <DataListCell id={this.elementId('status', application)} width={2} key={'status-' + appIndex}>
                         {application.inUse ? Msg.localize('inUse') : Msg.localize('notInUse')}
-                      </DataListCell>
+                      </DataListCell>,
+                      <DataListCell id={this.elementId('effectiveurl', application)} width={4} key={'effectiveUrl-' + appIndex}>
+                        <button className="pf-c-button pf-m-link" type="button" onClick={() => window.open(appUrl)}>
+                          <span className="pf-c-button__icon">
+                            <i className="fas fa-link" aria-hidden="true"></i>
+                          </span>{application.effectiveUrl}</button>
+                      </DataListCell>,
                     ]}
                   />
                 </DataListItemRow>

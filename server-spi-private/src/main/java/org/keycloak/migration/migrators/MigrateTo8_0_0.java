@@ -46,9 +46,11 @@ public class MigrateTo8_0_0  implements Migration {
     @Override
     public void migrate(KeycloakSession session) {
         // Perform basic realm migration first (non multi-factor authentication)
-        session.realms().getRealmsStream().forEach(this::migrateRealmCommon);
+        session.realms().getRealms().stream().forEach(realm -> migrateRealmCommon(realm));
         // Moreover, for multi-factor authentication migrate optional execution of realm flows to subflows
-        session.realms().getRealmsStream().forEach(realm -> migrateRealmMFA(realm));
+        session.realms().getRealms().stream().forEach(r -> {
+            migrateRealmMFA(session, r, false);
+        });
     }
 
     @Override
@@ -77,12 +79,15 @@ public class MigrateTo8_0_0  implements Migration {
         }
     }
 
-    protected void migrateRealmMFA(RealmModel realm) {
-        realm.getAuthenticationFlowsStream()
-                .forEach(authFlow ->
-                        realm.getAuthenticationExecutionsStream(authFlow.getId())
-                            .filter(exe -> exe.getRequirement() == AuthenticationExecutionModel.Requirement.CONDITIONAL)
-                            .forEachOrdered(exe -> migrateOptionalAuthenticationExecution(realm, authFlow, exe, true)));
+    protected void migrateRealmMFA(KeycloakSession session, RealmModel realm, boolean jsn) {
+        for (AuthenticationFlowModel authFlow : realm.getAuthenticationFlows()) {
+            for (AuthenticationExecutionModel authExecution : realm.getAuthenticationExecutions(authFlow.getId())) {
+                // Those were OPTIONAL executions in previous version
+                if (authExecution.getRequirement() == AuthenticationExecutionModel.Requirement.CONDITIONAL) {
+                    migrateOptionalAuthenticationExecution(realm, authFlow, authExecution, true);
+                }
+            }
+        }
     }
 
     public static void migrateOptionalAuthenticationExecution(RealmModel realm, AuthenticationFlowModel parentFlow, AuthenticationExecutionModel optionalExecution, boolean updateOptionalExecution) {

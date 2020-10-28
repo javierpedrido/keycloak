@@ -38,7 +38,6 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
@@ -103,8 +102,14 @@ public class ApplicationsBean {
     private Set<ClientModel> getApplications(KeycloakSession session, RealmModel realm, UserModel user) {
         Set<ClientModel> clients = new HashSet<>();
 
-        Predicate<ClientModel> bearerOnly = ClientModel::isBearerOnly;
-        clients.addAll(realm.getClientsStream().filter(bearerOnly.negate()).collect(Collectors.toSet()));
+        for (ClientModel client : realm.getClients()) {
+            // Don't show bearerOnly clients
+            if (client.isBearerOnly()) {
+                continue;
+            }
+
+            clients.add(client);
+        }
 
         List<UserConsentModel> consents = session.users().getConsents(realm, user.getId());
 

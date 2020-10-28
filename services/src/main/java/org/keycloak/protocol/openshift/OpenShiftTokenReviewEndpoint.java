@@ -93,8 +93,7 @@ public class OpenShiftTokenReviewEndpoint implements OIDCExtProvider, Environmen
         AccessToken token = null;
         try {
             TokenVerifier<AccessToken> verifier = TokenVerifier.create(reviewRequest.getSpec().getToken(), AccessToken.class)
-                    .realmUrl(Urls.realmIssuer(session.getContext().getUri().getBaseUri(), realm.getName()))
-                    .audience(reviewRequest.getSpec().getAudiences());
+                    .realmUrl(Urls.realmIssuer(session.getContext().getUri().getBaseUri(), realm.getName()));
 
             SignatureVerifierContext verifierContext = session.getProvider(SignatureProvider.class, verifier.getHeader().getAlgorithm().name()).verifier(verifier.getHeader().getKeyId());
             verifier.verifierContext(verifierContext);

@@ -42,9 +42,9 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.net.URI;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Stream;
 
 /**
  * @resource Groups
@@ -73,19 +73,23 @@ public class GroupsResource {
     @GET
     @NoCache
     @Produces(MediaType.APPLICATION_JSON)
-    public Stream<GroupRepresentation> getGroups(@QueryParam("search") String search,
-                                                 @QueryParam("first") Integer firstResult,
-                                                 @QueryParam("max") Integer maxResults,
-                                                 @QueryParam("briefRepresentation") @DefaultValue("true") boolean briefRepresentation) {
+    public List<GroupRepresentation> getGroups(@QueryParam("search") String search,
+                                               @QueryParam("first") Integer firstResult,
+                                               @QueryParam("max") Integer maxResults,
+                                               @QueryParam("briefRepresentation") @DefaultValue("true") boolean briefRepresentation) {
         auth.groups().requireList();
 
+        List<GroupRepresentation> results;
+
         if (Objects.nonNull(search)) {
-            return ModelToRepresentation.searchForGroupByName(realm, !briefRepresentation, search.trim(), firstResult, maxResults);
+            results = ModelToRepresentation.searchForGroupByName(realm, !briefRepresentation, search.trim(), firstResult, maxResults);
         } else if(Objects.nonNull(firstResult) && Objects.nonNull(maxResults)) {
-            return ModelToRepresentation.toGroupHierarchy(realm, !briefRepresentation, firstResult, maxResults);
+            results = ModelToRepresentation.toGroupHierarchy(realm, !briefRepresentation, firstResult, maxResults);
         } else {
-            return ModelToRepresentation.toGroupHierarchy(realm, !briefRepresentation);
+            results = ModelToRepresentation.toGroupHierarchy(realm, !briefRepresentation);
         }
+
+        return results;
     }
 
     /**

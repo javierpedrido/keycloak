@@ -18,8 +18,7 @@
 var module = angular.module('product', []);
 
 function getAuthServerUrl() {
-    let authUrl = auth.authz.authServerUrl
-    var url = authUrl.substring(0, authUrl.length - 5);
+    var url = 'https://localhost-auth-127.0.0.1.nip.io:8543';
 
     return url;
 }
@@ -48,7 +47,7 @@ angular.element(document).ready(function ($http) {
     var keycloakAuth = new Keycloak('keycloak.json');
     auth.loggedIn = false;
 
-    keycloakAuth.init({ onLoad: 'login-required' }).then(function () {
+    keycloakAuth.init({ onLoad: 'login-required' }).success(function () {
         console.log('here login');
         auth.loggedIn = true;
         auth.authz = keycloakAuth;
@@ -57,7 +56,7 @@ angular.element(document).ready(function ($http) {
             return auth;
         });
         angular.bootstrap(document, ["product"]);
-    }).catch(function () {
+    }).error(function () {
             alert("failed to login");
         });
 
@@ -117,12 +116,12 @@ module.factory('authInterceptor', function($q, Auth) {
         request: function (config) {
             var deferred = $q.defer();
             if (Auth.authz.token) {
-                Auth.authz.updateToken(5).then(function() {
+                Auth.authz.updateToken(5).success(function() {
                     config.headers = config.headers || {};
                     config.headers.Authorization = 'Bearer ' + Auth.authz.token;
 
                     deferred.resolve(config);
-                }).catch(function() {
+                }).error(function() {
                         deferred.reject('Failed to refresh token');
                     });
             }

@@ -85,8 +85,6 @@ import static org.keycloak.services.resources.admin.AdminAuth.Resource.CLIENT;
 import static org.keycloak.testsuite.util.ServerURLs.getAuthServerContextRoot;
 
 import org.keycloak.testsuite.utils.tls.TLSUtils;
-import org.jgroups.util.UUID;
-import org.keycloak.models.utils.KeycloakModelUtils;
 
 /**
  * @author <a href="mailto:sthorger@redhat.com">Stian Thorgersen</a>
@@ -714,7 +712,7 @@ public class PermissionsTest extends AbstractKeycloakTest {
 
         invoke(new Invocation() {
             public void invoke(RealmResource realm) {
-                realm.clients().get(UUID.randomUUID().toString()).roles().list();
+                realm.clients().get("nosuch").roles().list();
             }
         }, Resource.CLIENT, false, true);
         invoke(new Invocation() {
@@ -1072,7 +1070,7 @@ public class PermissionsTest extends AbstractKeycloakTest {
         }, Resource.REALM, false);
         invoke(new Invocation() {
             public void invoke(RealmResource realm) {
-                realm.roles().get("sample-role").getClientRoleComposites(KeycloakModelUtils.generateId());
+                realm.roles().get("sample-role").getClientRoleComposites("nosuch");
             }
         }, Resource.REALM, false);
         adminClient.realms().realm(REALM_NAME).roles().deleteRole("sample-role");
@@ -1299,7 +1297,7 @@ public class PermissionsTest extends AbstractKeycloakTest {
         }, Resource.REALM, false, true);
         invoke(new Invocation() {
             public void invoke(RealmResource realm) {
-                realm.rolesById().getClientRoleComposites(role.getId(), KeycloakModelUtils.generateId());
+                realm.rolesById().getClientRoleComposites(role.getId(), "nosuch");
             }
         }, Resource.REALM, false, true);
 
@@ -1459,7 +1457,7 @@ public class PermissionsTest extends AbstractKeycloakTest {
         }, Resource.USER, false);
         invoke(new Invocation() {
             public void invoke(RealmResource realm) {
-                realm.users().get(user.getId()).getOfflineSessions(KeycloakModelUtils.generateId());
+                realm.users().get(user.getId()).getOfflineSessions("nosuch");
             }
         }, Resource.USER, false);
         invoke(new Invocation() {

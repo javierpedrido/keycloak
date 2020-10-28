@@ -74,9 +74,8 @@ public class DirExportProvider extends MultipleStepsExportProvider {
     @Override
     public void writeRealm(String fileName, RealmRepresentation rep) throws IOException {
         File file = new File(this.rootDirectory, fileName);
-        try (FileOutputStream is = new FileOutputStream(file)) {
-            JsonSerialization.prettyMapper.writeValue(is, rep);
-        }
+        FileOutputStream stream = new FileOutputStream(file);
+        JsonSerialization.prettyMapper.writeValue(stream, rep);
     }
 
     @Override

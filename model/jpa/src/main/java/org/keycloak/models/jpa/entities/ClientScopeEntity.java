@@ -17,11 +17,7 @@
 
 package org.keycloak.models.jpa.entities;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.Set;
+import org.hibernate.annotations.Nationalized;
 
 import javax.persistence.Access;
 import javax.persistence.AccessType;
@@ -31,13 +27,12 @@ import javax.persistence.Entity;
 import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
-import javax.persistence.JoinTable;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.UniqueConstraint;
-
-import org.hibernate.annotations.Nationalized;
+import java.util.Collection;
+import java.util.LinkedList;
 
 /**
  * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
@@ -68,10 +63,6 @@ public class ClientScopeEntity {
 
     @OneToMany(cascade ={CascadeType.REMOVE}, orphanRemoval = true, mappedBy = "clientScope")
     protected Collection<ClientScopeAttributeEntity> attributes;
-
-    @OneToMany(fetch = FetchType.LAZY)
-    @JoinTable(name="CLIENT_SCOPE_ROLE_MAPPING", joinColumns = { @JoinColumn(name="SCOPE_ID")}, inverseJoinColumns = { @JoinColumn(name="ROLE_ID")})
-    protected Set<RoleEntity> scopeMapping = new HashSet<>();
 
     public RealmEntity getRealm() {
         return realm;
@@ -133,14 +124,6 @@ public class ClientScopeEntity {
 
     public void setAttributes(Collection<ClientScopeAttributeEntity> attributes) {
         this.attributes = attributes;
-    }
-
-    public Set<RoleEntity> getScopeMapping() {
-        return scopeMapping;
-    }
-
-    public void setScopeMapping(Set<RoleEntity> scopeMapping) {
-        this.scopeMapping = scopeMapping;
     }
 
     @Override

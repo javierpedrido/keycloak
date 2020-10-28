@@ -34,7 +34,6 @@ import java.util.Map;
 public class BrokeredIdentityContext {
 
     private String id;
-    private String legacyId;
     private String username;
     private String modelUsername;
     private String email;
@@ -63,19 +62,6 @@ public class BrokeredIdentityContext {
 
     public void setId(String id) {
         this.id = id;
-    }
-
-    /**
-     * ID from older API version. For API migrations.
-     *
-     * @return legacy ID
-     */
-    public String getLegacyId() {
-        return legacyId;
-    }
-
-    public void setLegacyId(String legacyId) {
-        this.legacyId = legacyId;
     }
 
     /**

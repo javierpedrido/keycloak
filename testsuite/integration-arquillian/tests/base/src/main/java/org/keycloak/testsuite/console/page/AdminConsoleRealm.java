@@ -62,7 +62,7 @@ public class AdminConsoleRealm extends AdminConsoleRealmsRoot {
 //        return realmsResource().realm(getConsoleRealm());
 //    }
 
-    public static class ConfigureMenu {
+    public class ConfigureMenu {
 
         @FindBy(partialLinkText = "Realm Settings")
         private WebElement realmSettingsLink;
@@ -111,7 +111,7 @@ public class AdminConsoleRealm extends AdminConsoleRealmsRoot {
         return manageMenu;
     }
 
-    public static class ManageMenu {
+    public class ManageMenu {
 
         @FindBy(partialLinkText = "Users")
         private WebElement usersLink;

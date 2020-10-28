@@ -18,7 +18,7 @@
 package org.keycloak.models.sessions.infinispan.initializer;
 
 import org.infinispan.Cache;
-import org.infinispan.manager.EmbeddedCacheManager;
+import org.infinispan.distexec.DistributedCallable;
 import org.jboss.logging.Logger;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
@@ -26,35 +26,37 @@ import org.keycloak.models.KeycloakSessionTask;
 import org.keycloak.models.utils.KeycloakModelUtils;
 
 import java.io.Serializable;
-import java.util.function.Function;
+import java.util.Set;
 
 /**
  * @author <a href="mailto:mposolda@redhat.com">Marek Posolda</a>
  */
-public class SessionInitializerWorker implements Function<EmbeddedCacheManager, SessionLoader.WorkerResult>, Serializable {
+public class SessionInitializerWorker implements DistributedCallable<String, Serializable, SessionLoader.WorkerResult>, Serializable {
 
     private static final Logger log = Logger.getLogger(SessionInitializerWorker.class);
+
 
     private SessionLoader.LoaderContext loaderCtx;
     private SessionLoader.WorkerContext workerCtx;
     private SessionLoader sessionLoader;
 
-    private String cacheName;
+    private transient Cache<String, Serializable> workCache;
 
-
-    public void setWorkerEnvironment(SessionLoader.LoaderContext loaderCtx, SessionLoader.WorkerContext workerCtx, SessionLoader sessionLoader, String cacheName) {
+    public void setWorkerEnvironment(SessionLoader.LoaderContext loaderCtx, SessionLoader.WorkerContext workerCtx, SessionLoader sessionLoader) {
         this.loaderCtx = loaderCtx;
         this.workerCtx = workerCtx;
         this.sessionLoader = sessionLoader;
-        this.cacheName = cacheName;
     }
 
+    @Override
+    public void setEnvironment(Cache<String, Serializable> workCache, Set<String> inputKeys) {
+        this.workCache = workCache;
+    }
 
     @Override
-    public SessionLoader.WorkerResult apply(EmbeddedCacheManager embeddedCacheManager) {
-        Cache<Object, Object> workCache = embeddedCacheManager.getCache(cacheName);
+    public SessionLoader.WorkerResult call() throws Exception {
         if (log.isTraceEnabled()) {
-            log.tracef("Running computation for segment %s with worker %s", workerCtx.getSegment(), workerCtx.getWorkerId());
+            log.tracef("Running computation for segment: %s", workerCtx.toString());
         }
 
         KeycloakSessionFactory sessionFactory = workCache.getAdvancedCache().getComponentRegistry().getComponent(KeycloakSessionFactory.class);
@@ -75,4 +77,5 @@ public class SessionInitializerWorker implements Function<EmbeddedCacheManager, 
 
         return ref[0];
     }
+
 }

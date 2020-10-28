@@ -40,7 +40,6 @@ import org.keycloak.representations.idm.UserRepresentation;
 import org.keycloak.testsuite.AssertEvents;
 import org.keycloak.testsuite.AbstractTestRealmKeycloakTest;
 import org.keycloak.testsuite.admin.ApiUtil;
-import org.keycloak.testsuite.arquillian.annotation.AuthServerContainerExclude;
 import org.keycloak.testsuite.console.page.AdminConsole;
 import org.keycloak.testsuite.pages.AccountUpdateProfilePage;
 import org.keycloak.testsuite.pages.AppPage;
@@ -68,6 +67,7 @@ import javax.ws.rs.core.UriBuilder;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.RandomStringUtils;
 
@@ -163,14 +163,14 @@ public class LoginTest extends AbstractTestRealmKeycloakTest {
         Client client = ClientBuilder.newClient();
         Response response = client.target(oauth.getLoginFormUrl()).request().get();
         Assert.assertThat(response.getStatus(), is(equalTo(200)));
-        for (BrowserSecurityHeaders header : BrowserSecurityHeaders.values()) {
-            String headerValue = response.getHeaderString(header.getHeaderName());
-            String expectedValue = header.getDefaultValue();
-            if (expectedValue.isEmpty()) {
+        for (Map.Entry<String, String> entry : BrowserSecurityHeaders.defaultHeaders.entrySet()) {
+            String headerName = BrowserSecurityHeaders.headerAttributeMap.get(entry.getKey());
+            String headerValue = response.getHeaderString(headerName);
+            if (entry.getValue().isEmpty()) {
                 Assert.assertNull(headerValue);
             } else {
                 Assert.assertNotNull(headerValue);
-                Assert.assertThat(headerValue, is(equalTo(expectedValue)));
+                Assert.assertThat(headerValue, is(equalTo(entry.getValue())));
             }
         }
         response.close();
@@ -217,7 +217,6 @@ public class LoginTest extends AbstractTestRealmKeycloakTest {
         client.close();
     }
 
-    @AuthServerContainerExclude(value = AuthServerContainerExclude.AuthServer.QUARKUS, details = "Unstable for Quarkus, review later")
     @Test
     public void loginWithLongRedirectUri() throws Exception {
         try (AutoCloseable c = new RealmAttributeUpdater(adminClient.realm("test"))

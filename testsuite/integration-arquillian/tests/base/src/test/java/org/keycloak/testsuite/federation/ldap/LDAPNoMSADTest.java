@@ -38,7 +38,6 @@ import org.keycloak.testsuite.util.LDAPTestConfiguration;
 import org.keycloak.testsuite.util.LDAPTestUtils;
 
 import java.util.List;
-import java.util.Objects;
 
 import static org.hamcrest.Matchers.equalToIgnoringCase;
 
@@ -111,10 +110,13 @@ public class LDAPNoMSADTest extends AbstractLDAPTest {
             Assert.assertEquals("sn=Doe2", john2.getDn().getFirstRdn().toString());
 
             // Remove "sn" mapper
-            snMapper = appRealm.getComponentsStream(ctx.getLdapModel().getId(), LDAPStorageMapper.class.getName())
-                    .filter(mapper -> Objects.equals(mapper.getName(), "last name"))
-                    .findFirst()
-                    .orElse(null);
+            List<ComponentModel> components = appRealm.getComponents(ctx.getLdapModel().getId(), LDAPStorageMapper.class.getName());
+            for (ComponentModel mapper : components) {
+                if (mapper.getName().equals("last name")) {
+                    snMapper = mapper;
+                    break;
+                }
+            }
 
             Assert.assertNotNull(snMapper);
             appRealm.removeComponent(snMapper);

@@ -31,9 +31,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.stream.Stream;
-
-import static org.keycloak.utils.StreamsUtil.closing;
 
 /**
  * @author <a href="mailto:sthorger@redhat.com">Stian Thorgersen</a>
@@ -116,7 +113,7 @@ public class JpaEventQuery implements EventQuery {
     }
 
     @Override
-    public Stream<Event> getResultStream() {
+    public List<Event> getResultList() {
         if (!predicates.isEmpty()) {
             cq.where(cb.and(predicates.toArray(new Predicate[predicates.size()])));
         }
@@ -133,8 +130,12 @@ public class JpaEventQuery implements EventQuery {
             query.setMaxResults(maxResults);
         }
 
+        List<Event> events = new LinkedList<Event>();
+        for (EventEntity e : query.getResultList()) {
+            events.add(JpaEventStoreProvider.convertEvent(e));
+        }
 
-        return closing(query.getResultList().stream().map(JpaEventStoreProvider::convertEvent));
+        return events;
     }
 
 }

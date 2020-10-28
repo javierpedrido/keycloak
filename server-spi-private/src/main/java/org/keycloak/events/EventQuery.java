@@ -19,8 +19,6 @@ package org.keycloak.events;
 
 import java.util.Date;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * @author <a href="mailto:sthorger@redhat.com">Stian Thorgersen</a>
@@ -45,17 +43,6 @@ public interface EventQuery {
 
     EventQuery maxResults(int results);
 
-    /**
-     * @deprecated Use {@link #getResultStream() getResultStream} instead.
-     */
-    @Deprecated
-    default List<Event> getResultList() {
-        return getResultStream().collect(Collectors.toList());
-    }
+    List<Event> getResultList();
 
-    /**
-     * Returns requested results that match given criteria as a stream.
-     * @return Stream of events
-     */
-    Stream<Event> getResultStream();
 }

@@ -100,7 +100,7 @@ public class LoadPersistentSessionsCommand extends AbstractCommand {
     }
 
 
-    private static class MyWorker implements Runnable {
+    private class MyWorker implements Runnable {
 
         private final int workerId;
         private final int lastCreatedOn;

@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Optional capability interface implemented by UserStorageProviders.
@@ -127,9 +128,14 @@ public interface UserQueryProvider {
      * @return number of users that are in at least one of the groups
      */
     static int countUsersInGroups(List<UserModel> users, Set<String> groupIds) {
-        return (int) users.stream()
-                .filter(u -> u.getGroupsStream().anyMatch(group -> groupIds.contains(group.getId())))
-                .count();
+        return (int) users.stream().filter(u -> {
+            for (GroupModel group : u.getGroups()) {
+                if (groupIds.contains(group.getId())) {
+                    return true;
+                }
+            }
+            return false;
+        }).count();
     }
 
     /**

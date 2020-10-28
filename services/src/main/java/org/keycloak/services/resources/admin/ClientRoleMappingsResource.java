@@ -19,6 +19,7 @@ package org.keycloak.services.resources.admin;
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.annotations.cache.NoCache;
 
+import javax.ws.rs.BadRequestException;
 import javax.ws.rs.NotFoundException;
 import org.keycloak.services.resources.admin.permissions.AdminPermissionEvaluator;
 import org.keycloak.events.admin.OperationType;
@@ -45,11 +46,14 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
+import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.function.Function;
-import java.util.function.Predicate;
+import java.util.Properties;
+import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * @resource Client Role Mappings
@@ -92,10 +96,15 @@ public class ClientRoleMappingsResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @NoCache
-    public Stream<RoleRepresentation> getClientRoleMappings() {
+    public List<RoleRepresentation> getClientRoleMappings() {
         viewPermission.require();
 
-        return user.getClientRoleMappingsStream(client).map(ModelToRepresentation::toBriefRepresentation);
+        Set<RoleModel> mappings = user.getClientRoleMappings(client);
+        List<RoleRepresentation> mapRep = new ArrayList<RoleRepresentation>();
+        for (RoleModel roleModel : mappings) {
+            mapRep.add(ModelToRepresentation.toBriefRepresentation(roleModel));
+        }
+        return mapRep;
     }
 
     /**
@@ -111,13 +120,17 @@ public class ClientRoleMappingsResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @NoCache
-    public Stream<RoleRepresentation> getCompositeClientRoleMappings(@QueryParam("briefRepresentation") @DefaultValue("true") boolean briefRepresentation) {
+    public List<RoleRepresentation> getCompositeClientRoleMappings(@QueryParam("briefRepresentation") @DefaultValue("true") boolean briefRepresentation) {
         viewPermission.require();
 
-        Stream<RoleModel> roles = client.getRolesStream();
-        Function<RoleModel, RoleRepresentation> toBriefRepresentation = briefRepresentation
-                ? ModelToRepresentation::toBriefRepresentation : ModelToRepresentation::toRepresentation;
-        return roles.filter(user::hasRole).map(toBriefRepresentation);
+        Set<RoleModel> roles = client.getRoles();
+        List<RoleRepresentation> mapRep = new ArrayList<RoleRepresentation>();
+        for (RoleModel roleModel : roles) {
+            if (user.hasRole(roleModel)) {
+                mapRep.add(briefRepresentation ? ModelToRepresentation.toBriefRepresentation(roleModel) : ModelToRepresentation.toRepresentation(roleModel));
+            }
+        }
+        return mapRep;
     }
 
     /**
@@ -129,13 +142,28 @@ public class ClientRoleMappingsResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @NoCache
-    public Stream<RoleRepresentation> getAvailableClientRoleMappings() {
+    public List<RoleRepresentation> getAvailableClientRoleMappings() {
         viewPermission.require();
 
-        return client.getRolesStream()
-                .filter(auth.roles()::canMapRole)
-                .filter(((Predicate<RoleModel>) user::hasRole).negate())
-                .map(ModelToRepresentation::toBriefRepresentation);
+        Set<RoleModel> available = client.getRoles();
+        available = available.stream().filter(r ->
+                auth.roles().canMapRole(r)
+        ).collect(Collectors.toSet());
+        return getAvailableRoles(user, available);
+    }
+
+    public static List<RoleRepresentation> getAvailableRoles(RoleMapperModel mapper, Set<RoleModel> available) {
+        Set<RoleModel> roles = new HashSet<RoleModel>();
+        for (RoleModel roleModel : available) {
+            if (mapper.hasRole(roleModel)) continue;
+            roles.add(roleModel);
+        }
+
+        List<RoleRepresentation> mappings = new ArrayList<RoleRepresentation>();
+        for (RoleModel roleModel : roles) {
+            mappings.add(ModelToRepresentation.toBriefRepresentation(roleModel));
+        }
+        return mappings;
     }
 
     /**
@@ -177,13 +205,19 @@ public class ClientRoleMappingsResource {
         managePermission.require();
 
         if (roles == null) {
-            roles = user.getClientRoleMappingsStream(client)
-                    .peek(roleModel -> {
-                        auth.roles().requireMapRole(roleModel);
-                        user.deleteRoleMapping(roleModel);
-                    })
-                    .map(ModelToRepresentation::toBriefRepresentation)
-                    .collect(Collectors.toList());
+            Set<RoleModel> roleModels = user.getClientRoleMappings(client);
+            roles = new LinkedList<>();
+
+            for (RoleModel roleModel : roleModels) {
+                if (roleModel.getContainer() instanceof ClientModel) {
+                    ClientModel client = (ClientModel) roleModel.getContainer();
+                    if (!client.getId().equals(this.client.getId())) continue;
+                }
+                auth.roles().requireMapRole(roleModel);
+                user.deleteRoleMapping(roleModel);
+                roles.add(ModelToRepresentation.toBriefRepresentation(roleModel));
+            }
+
         } else {
             for (RoleRepresentation role : roles) {
                 RoleModel roleModel = client.getRole(role.getName());

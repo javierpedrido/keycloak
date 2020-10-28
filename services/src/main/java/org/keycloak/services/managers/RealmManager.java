@@ -52,6 +52,7 @@ import org.keycloak.representations.idm.RealmEventsConfigRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.sessions.AuthenticationSessionProvider;
+import org.keycloak.storage.UserStorageProviderModel;
 import org.keycloak.services.clientregistration.policy.DefaultClientRegistrationPolicies;
 
 import java.util.Collections;
@@ -125,11 +126,11 @@ public class RealmManager {
     }
 
     protected void setupAuthenticationFlows(RealmModel realm) {
-        if (realm.getAuthenticationFlowsStream().count() == 0) DefaultAuthenticationFlows.addFlows(realm);
+        if (realm.getAuthenticationFlows().size() == 0) DefaultAuthenticationFlows.addFlows(realm);
     }
 
     protected void setupRequiredActions(RealmModel realm) {
-        if (realm.getRequiredActionProvidersStream().count() == 0) DefaultRequiredActions.addActions(realm);
+        if (realm.getRequiredActionProviders().size() == 0) DefaultRequiredActions.addActions(realm);
     }
 
     private void setupOfflineTokens(RealmModel realm, RealmRepresentation realmRep) {
@@ -176,7 +177,7 @@ public class RealmManager {
     }
 
     protected void setupAdminConsoleLocaleMapper(RealmModel realm) {
-        ClientModel adminConsole = session.clients().getClientByClientId(realm, Constants.ADMIN_CONSOLE_CLIENT_ID);
+        ClientModel adminConsole = realm.getClientByClientId(Constants.ADMIN_CONSOLE_CLIENT_ID);
         ProtocolMapperModel localeMapper = adminConsole.getProtocolMapperByName(OIDCLoginProtocol.LOGIN_PROTOCOL, OIDCLoginProtocolFactory.LOCALE);
 
         if (localeMapper == null) {
@@ -226,7 +227,7 @@ public class RealmManager {
 
 
     protected void setupRealmDefaults(RealmModel realm) {
-        realm.setBrowserSecurityHeaders(BrowserSecurityHeaders.realmDefaultHeaders);
+        realm.setBrowserSecurityHeaders(BrowserSecurityHeaders.defaultHeaders);
 
         // brute force
         realm.setBruteForceProtected(false); // default settings off for now todo set it on
@@ -250,7 +251,7 @@ public class RealmManager {
         boolean removed = model.removeRealm(realm.getId());
         if (removed) {
             if (masterAdminClient != null) {
-                session.clients().removeClient(getKeycloakAdminstrationRealm(), masterAdminClient.getId());
+                new ClientManager(this).removeClient(getKeycloakAdminstrationRealm(), masterAdminClient);
             }
 
             UserSessionProvider sessions = session.sessions();
@@ -269,9 +270,11 @@ public class RealmManager {
             }
 
           // Refresh periodic sync tasks for configured storageProviders
+            List<UserStorageProviderModel> storageProviders = realm.getUserStorageProviders();
             UserStorageSyncManager storageSync = new UserStorageSyncManager();
-            realm.getUserStorageProvidersStream()
-                    .forEachOrdered(provider -> storageSync.notifyToRefreshPeriodicSync(session, realm, provider, true));
+            for (UserStorageProviderModel provider : storageProviders) {
+                storageSync.notifyToRefreshPeriodicSync(session, realm, provider, true);
+            }
 
         }
         return removed;
@@ -300,11 +303,11 @@ public class RealmManager {
         String adminRealmId = Config.getAdminRealm();
         RealmModel adminRealm = model.getRealm(adminRealmId);
         ClientModel masterApp = adminRealm.getClientByClientId(KeycloakModelUtils.getMasterRealmAdminApplicationClientId(realm.getName()));
-        if (masterApp == null) {
+        if (masterApp != null) {
+            realm.setMasterAdminClient(masterApp);
+        }  else {
             createMasterAdminManagement(realm);
-            return;
         }
-        realm.setMasterAdminClient(masterApp);
     }
 
     private void createMasterAdminManagement(RealmModel realm) {
@@ -518,19 +521,22 @@ public class RealmManager {
         if (!hasRealmAdminManagementClient(rep)) setupRealmAdminManagement(realm);
         if (!hasAccountManagementClient(rep)) setupAccountManagement(realm);
 
-        boolean postponeImpersonationSetup = hasRealmAdminManagementClient(rep);
-        if (!postponeImpersonationSetup) {
+        boolean postponeImpersonationSetup = false;
+        if (hasRealmAdminManagementClient(rep)) {
+            postponeImpersonationSetup = true;
+        } else {
             setupImpersonationService(realm);
         }
+
 
         if (!hasBrokerClient(rep)) setupBrokerService(realm);
         if (!hasAdminConsoleClient(rep)) setupAdminConsole(realm);
 
         boolean postponeAdminCliSetup = false;
         if (!hasAdminCliClient(rep)) {
-            postponeAdminCliSetup = hasRealmAdminManagementClient(rep);
-            
-            if(!postponeAdminCliSetup) {
+            if (hasRealmAdminManagementClient(rep)) {
+                postponeAdminCliSetup = true;
+            } else {
                 setupAdminCli(realm);
             }
         }
@@ -544,6 +550,7 @@ public class RealmManager {
         }
 
         RepresentationToModel.importRealm(session, rep, realm, skipUserDependent);
+        List<ClientRepresentation> clients = rep.getClients();
 
         setupClientServiceAccountsAndAuthorizationOnImport(rep, skipUserDependent);
 
@@ -563,7 +570,8 @@ public class RealmManager {
         // I need to postpone impersonation because it needs "realm-management" client and its roles set
         if (postponeImpersonationSetup) {
             setupImpersonationService(realm);
-        }
+            String realmAdminClientId = getRealmAdminClientId(realm);
+         }
 
         if (postponeAdminCliSetup) {
             setupAdminCli(realm);
@@ -573,9 +581,11 @@ public class RealmManager {
         setupRequiredActions(realm);
 
         // Refresh periodic sync tasks for configured storageProviders
+        List<UserStorageProviderModel> storageProviders = realm.getUserStorageProviders();
         UserStorageSyncManager storageSync = new UserStorageSyncManager();
-        realm.getUserStorageProvidersStream()
-                .forEachOrdered(provider -> storageSync.notifyToRefreshPeriodicSync(session, realm, provider, false));
+        for (UserStorageProviderModel provider : storageProviders) {
+            storageSync.notifyToRefreshPeriodicSync(session, realm, provider, false);
+        }
 
         setupAuthorizationServices(realm);
         setupClientRegistrations(realm);

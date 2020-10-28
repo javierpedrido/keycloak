@@ -89,11 +89,6 @@ public class DeviceActivityManager {
 
     private static DeviceRepresentation getDeviceFromUserAgent(KeycloakSession session) {
         KeycloakContext context = session.getContext();
-
-        if (context.getRequestHeaders() == null) {
-            return null;
-        }
-
         String userAgent = context.getRequestHeaders().getHeaderString(HttpHeaders.USER_AGENT);
 
         if (userAgent == null) {

@@ -35,15 +35,11 @@ import java.util.stream.Stream;
  * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
  * @version $Revision: 1 $
  */
+@Provider
 public class ObjectMapperResolver implements ContextResolver<ObjectMapper> {
-    protected ObjectMapper mapper;
+    protected ObjectMapper mapper = new ObjectMapper();
 
     public ObjectMapperResolver() {
-        mapper = createStreamSerializer();
-    }
-
-    public static ObjectMapper createStreamSerializer() {
-        ObjectMapper mapper = new ObjectMapper();
         JavaType type = TypeFactory.unknownType();
         JavaType streamType = mapper.getTypeFactory().constructParametricType(Stream.class, type);
 
@@ -55,8 +51,6 @@ public class ObjectMapperResolver implements ContextResolver<ObjectMapper> {
         if (Boolean.parseBoolean(System.getProperty("keycloak.jsonPrettyPrint", "false"))) {
             mapper.enable(SerializationFeature.INDENT_OUTPUT);
         }
-
-        return mapper;
     }
 
     @Override

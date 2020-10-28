@@ -1,7 +1,9 @@
 package org.keycloak.testsuite.error;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -12,6 +14,7 @@ import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.broker.provider.util.SimpleHttp;
 import org.keycloak.common.util.StreamUtil;
 import org.keycloak.models.BrowserSecurityHeaders;
+import org.keycloak.representations.idm.ErrorRepresentation;
 import org.keycloak.representations.idm.OAuth2ErrorRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.testsuite.AbstractKeycloakTest;
@@ -28,6 +31,7 @@ import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.*;
 
@@ -122,13 +126,14 @@ public class UncaughtErrorPageTest extends AbstractKeycloakTest {
         try (CloseableHttpClient client = HttpClientBuilder.create().build()) {
             SimpleHttp.Response response = SimpleHttp.doGet(uri.toString(), client).header("Accept", MediaType.TEXT_HTML_UTF_8).asResponse();
 
-            for (BrowserSecurityHeaders header : BrowserSecurityHeaders.values()) {
-                String expectedValue = header.getDefaultValue();
+            for (Map.Entry<String, String> e : BrowserSecurityHeaders.headerAttributeMap.entrySet()) {
+                String header = e.getValue();
+                String expectedValue = BrowserSecurityHeaders.defaultHeaders.get(e.getKey());
 
                 if (expectedValue == null || expectedValue.isEmpty()) {
-                    assertNull(response.getFirstHeader(header.getHeaderName()));
+                    assertNull(response.getFirstHeader(header));
                 } else {
-                    assertEquals(expectedValue, response.getFirstHeader(header.getHeaderName()));
+                    assertEquals(expectedValue, response.getFirstHeader(header));
                 }
             }
         }

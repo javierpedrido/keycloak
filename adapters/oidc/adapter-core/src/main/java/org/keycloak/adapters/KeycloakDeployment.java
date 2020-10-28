@@ -20,7 +20,6 @@ package org.keycloak.adapters;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.util.EntityUtils;
 import org.jboss.logging.Logger;
 import org.keycloak.adapters.authentication.ClientCredentialsProvider;
 import org.keycloak.adapters.authorization.PolicyEnforcer;
@@ -217,16 +216,12 @@ public class KeycloakDeployment {
         HttpGet request = new HttpGet(discoveryUrl);
         request.addHeader("accept", "application/json");
 
-        try {
-            HttpResponse response = getClient().execute(request);
-            if (response.getStatusLine().getStatusCode() != 200) {
-                EntityUtils.consumeQuietly(response.getEntity());
-                throw new Exception(response.getStatusLine().getReasonPhrase());
-            }
-            return JsonSerialization.readValue(response.getEntity().getContent(), OIDCConfigurationRepresentation.class);
-        } finally {
-            request.releaseConnection();
+        HttpResponse response = getClient().execute(request);
+        if (response.getStatusLine().getStatusCode() != 200) {
+            throw new Exception(response.getStatusLine().getReasonPhrase());
         }
+
+        return JsonSerialization.readValue(response.getEntity().getContent(), OIDCConfigurationRepresentation.class);
     }
 
     public RelativeUrlsUsed getRelativeUrls() {

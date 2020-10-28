@@ -41,7 +41,12 @@ public class MigrateTo3_0_0 implements Migration {
 
     @Override
     public void migrate(KeycloakSession session) {
-        session.realms().getRealmsStream().forEach(this::migrateRealm);
+        for (RealmModel realm : session.realms().getRealms()) {
+
+            migrateRealm(realm);
+
+        }
+
     }
 
     @Override
@@ -50,7 +55,7 @@ public class MigrateTo3_0_0 implements Migration {
     }
 
     protected void migrateRealm(RealmModel realm) {
-        realm.getClientsStream()
+        realm.getClients().stream()
                 .filter(clientModel -> defaultClients.contains(clientModel.getId()))
                 .filter(clientModel -> Objects.isNull(clientModel.getProtocol()))
                 .forEach(clientModel -> clientModel.setProtocol("openid-connect"));

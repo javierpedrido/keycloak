@@ -18,6 +18,7 @@
 package org.keycloak.authentication.authenticators.browser;
 
 import org.keycloak.authentication.AuthenticationFlowContext;
+import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.RoleModel;
@@ -286,7 +287,8 @@ public class ConditionalOtpFormAuthenticator extends OTPFormAuthenticator {
 
     private boolean isOTPRequired(KeycloakSession session, RealmModel realm, UserModel user) {
         MultivaluedMap<String, String> requestHeaders = session.getContext().getRequestHeaders().getRequestHeaders();
-        return realm.getAuthenticatorConfigsStream().anyMatch(configModel -> {
+        for (AuthenticatorConfigModel configModel : realm.getAuthenticatorConfigs()) {
+
             if (tryConcludeBasedOn(voteForUserOtpControlAttribute(user, configModel.getConfig()))) {
                 return true;
             }
@@ -309,8 +311,8 @@ public class ConditionalOtpFormAuthenticator extends OTPFormAuthenticator {
                     || voteForDefaultFallback(configModel.getConfig()) == ABSTAIN)) {
                 return true;
             }
-            return false;
-        });
+        }
+        return false;
     }
 
     private boolean containsConditionalOtpConfig(Map config) {

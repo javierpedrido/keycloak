@@ -44,7 +44,6 @@ public class CreateLogoutRequestStepBuilder extends SamlDocumentStepBuilder<Logo
     private Supplier<String> relayState = () -> null;
     private String signingPublicKeyPem;  // TODO: should not be needed
     private String signingPrivateKeyPem;
-    private String signingCertificate;
 
     public CreateLogoutRequestStepBuilder(URI authServerSamlUrl, String issuer, Binding requestBinding, SamlClientBuilder clientBuilder) {
         super(clientBuilder);
@@ -96,13 +95,8 @@ public class CreateLogoutRequestStepBuilder extends SamlDocumentStepBuilder<Logo
     }
 
     public CreateLogoutRequestStepBuilder signWith(String signingPrivateKeyPem, String signingPublicKeyPem) {
-        return signWith(signingPrivateKeyPem, signingPublicKeyPem, null);
-    }
-
-    public CreateLogoutRequestStepBuilder signWith(String signingPrivateKeyPem, String signingPublicKeyPem, String signingCertificate) {
         this.signingPrivateKeyPem = signingPrivateKeyPem;
         this.signingPublicKeyPem = signingPublicKeyPem;
-        this.signingCertificate = signingCertificate;
         return this;
     }
 
@@ -123,7 +117,7 @@ public class CreateLogoutRequestStepBuilder extends SamlDocumentStepBuilder<Logo
 
         return this.signingPrivateKeyPem == null
           ? requestBinding.createSamlUnsignedRequest(authServerSamlUrl, relayState(), DocumentUtil.getDocument(transformed))
-          : requestBinding.createSamlSignedRequest(authServerSamlUrl, relayState(), DocumentUtil.getDocument(transformed), signingPrivateKeyPem, signingPublicKeyPem, signingCertificate);
+          : requestBinding.createSamlSignedRequest(authServerSamlUrl, relayState(), DocumentUtil.getDocument(transformed), signingPrivateKeyPem, signingPublicKeyPem);
     }
 
 }

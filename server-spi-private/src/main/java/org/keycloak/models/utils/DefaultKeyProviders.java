@@ -23,7 +23,7 @@ import org.keycloak.crypto.Algorithm;
 import org.keycloak.keys.KeyProvider;
 import org.keycloak.models.RealmModel;
 
-import java.util.Objects;
+import java.util.List;
 
 /**
  * @author <a href="mailto:sthorger@redhat.com">Stian Thorgersen</a>
@@ -81,8 +81,13 @@ public class DefaultKeyProviders {
     }
 
     protected static boolean hasProvider(RealmModel realm, String providerId) {
-        return realm.getComponentsStream(realm.getId(), KeyProvider.class.getName())
-                .anyMatch(component -> Objects.equals(component.getProviderId(), providerId));
+        List<ComponentModel> currentComponents = realm.getComponents(realm.getId(), KeyProvider.class.getName());
+        for (ComponentModel current : currentComponents) {
+            if (current.getProviderId().equals(providerId)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static void createProviders(RealmModel realm, String privateKeyPem, String certificatePem) {

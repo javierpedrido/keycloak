@@ -21,23 +21,31 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.RoleModel;
 import org.keycloak.models.UserModel;
 
-import java.util.stream.Stream;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
  * @version $Revision: 1 $
  */
 public class DefaultRoles {
-    public static Stream<RoleModel> getDefaultRoles(RealmModel realm) {
-        Stream<RoleModel> realmDefaultRoles = realm.getDefaultRolesStream().map(realm::getRole);
-        Stream<RoleModel> clientDefaultRoles = realm.getClientsStream().flatMap(DefaultRoles::toClientDefaultRoles);
-        return Stream.concat(realmDefaultRoles, clientDefaultRoles);
+    public static Set<RoleModel> getDefaultRoles(RealmModel realm) {
+        Set<RoleModel> set = new HashSet<>();
+        for (String r : realm.getDefaultRoles()) {
+            set.add(realm.getRole(r));
+        }
+
+        for (ClientModel application : realm.getClients()) {
+            for (String r : application.getDefaultRoles()) {
+                set.add(application.getRole(r));
+            }
+        }
+        return set;
+
     }
     public static void addDefaultRoles(RealmModel realm, UserModel userModel) {
-        getDefaultRoles(realm).forEach(userModel::grantRole);
-    }
-
-    private static Stream<RoleModel> toClientDefaultRoles(ClientModel c) {
-        return c.getDefaultRolesStream().map(c::getRole);
+        for (RoleModel role : getDefaultRoles(realm)) {
+            userModel.grantRole(role);
+        }
     }
 }

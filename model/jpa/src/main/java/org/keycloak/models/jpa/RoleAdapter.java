@@ -34,8 +34,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Stream;
+import java.util.Set;
 
 /**
  * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
@@ -89,7 +88,7 @@ public class RoleAdapter implements RoleModel, JpaModel<RoleEntity> {
 
     @Override
     public boolean isComposite() {
-        return getCompositesStream().count() > 0;
+        return getComposites().size() > 0;
     }
 
     @Override
@@ -108,8 +107,16 @@ public class RoleAdapter implements RoleModel, JpaModel<RoleEntity> {
     }
 
     @Override
-    public Stream<RoleModel> getCompositesStream() {
-        return getEntity().getCompositeRoles().stream().map(c -> new RoleAdapter(session, realm, em, c));
+    public Set<RoleModel> getComposites() {
+        Set<RoleModel> set = new HashSet<RoleModel>();
+
+        for (RoleEntity composite : getEntity().getCompositeRoles()) {
+            set.add(new RoleAdapter(session, realm, em, composite));
+
+            // todo I want to do this, but can't as you get stack overflow
+            // set.add(session.realms().getRoleById(composite.getId(), realm));
+        }
+        return set;
     }
 
     @Override
@@ -158,14 +165,24 @@ public class RoleAdapter implements RoleModel, JpaModel<RoleEntity> {
 
     @Override
     public String getFirstAttribute(String name) {
-        return getAttributeStream(name).findFirst().orElse(null);
+        for (RoleAttributeEntity attribute : role.getAttributes()) {
+            if (attribute.getName().equals(name)) {
+                return attribute.getValue();
+            }
+        }
+
+        return null;
     }
 
     @Override
-    public Stream<String> getAttributeStream(String name) {
-        return role.getAttributes().stream()
-                .filter(a -> Objects.equals(a.getName(), name))
-                .map(RoleAttributeEntity::getValue);
+    public List<String> getAttribute(String name) {
+        List<String> attributes = new ArrayList<>();
+        for (RoleAttributeEntity attribute : role.getAttributes()) {
+            if (attribute.getName().equals(name)) {
+                attributes.add(attribute.getValue());
+            }
+        }
+        return attributes;
     }
 
     @Override
@@ -185,7 +202,7 @@ public class RoleAdapter implements RoleModel, JpaModel<RoleEntity> {
 
     @Override
     public String getContainerId() {
-        if (isClientRole()) return role.getClientId();
+        if (isClientRole()) return role.getClient().getId();
         else return realm.getId();
     }
 
@@ -193,7 +210,7 @@ public class RoleAdapter implements RoleModel, JpaModel<RoleEntity> {
     @Override
     public RoleContainerModel getContainer() {
         if (role.isClientRole()) {
-            return realm.getClientById(role.getClientId());
+            return realm.getClientById(role.getClient().getId());
 
         } else {
             return realm;

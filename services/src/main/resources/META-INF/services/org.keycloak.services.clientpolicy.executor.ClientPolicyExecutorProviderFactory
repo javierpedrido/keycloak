@@ -1,2 +1,0 @@
-org.keycloak.services.clientpolicy.executor.SecureResponseTypeExecutorFactory
-org.keycloak.services.clientpolicy.executor.SecureRequestObjectExecutorFactory

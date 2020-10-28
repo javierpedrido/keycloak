@@ -316,14 +316,10 @@ public abstract class AbstractBaseBrokerTest extends AbstractKeycloakTest {
 
 
     protected void assertLoggedInAccountManagement() {
-        assertLoggedInAccountManagement(bc.getUserLogin(), bc.getUserEmail());
-    }
-
-    protected void assertLoggedInAccountManagement(String username, String email) {
         waitForAccountManagementTitle();
         Assert.assertTrue(accountUpdateProfilePage.isCurrent());
-        Assert.assertEquals(accountUpdateProfilePage.getUsername(), username);
-        Assert.assertEquals(accountUpdateProfilePage.getEmail(), email);
+        Assert.assertEquals(accountUpdateProfilePage.getUsername(), bc.getUserLogin());
+        Assert.assertEquals(accountUpdateProfilePage.getEmail(), bc.getUserEmail());
     }
 
     protected void waitForAccountManagementTitle() {

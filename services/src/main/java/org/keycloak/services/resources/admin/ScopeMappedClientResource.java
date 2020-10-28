@@ -40,11 +40,10 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
+import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.Set;
 
 /**
  * @resource Scope Mappings
@@ -84,11 +83,15 @@ public class ScopeMappedClientResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @NoCache
-    public Stream<RoleRepresentation> getClientScopeMappings() {
+    public List<RoleRepresentation> getClientScopeMappings() {
         viewPermission.require();
 
-        return KeycloakModelUtils.getClientScopeMappingsStream(scopedClient, scopeContainer)
-                .map(ModelToRepresentation::toBriefRepresentation);
+        Set<RoleModel> mappings = KeycloakModelUtils.getClientScopeMappings(scopedClient, scopeContainer); //scopedClient.getClientScopeMappings(client);
+        List<RoleRepresentation> mapRep = new ArrayList<RoleRepresentation>();
+        for (RoleModel roleModel : mappings) {
+            mapRep.add(ModelToRepresentation.toBriefRepresentation(roleModel));
+        }
+        return mapRep;
     }
 
     /**
@@ -102,13 +105,11 @@ public class ScopeMappedClientResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @NoCache
-    public Stream<RoleRepresentation> getAvailableClientScopeMappings() {
+    public List<RoleRepresentation> getAvailableClientScopeMappings() {
         viewPermission.require();
 
-        return scopedClient.getRolesStream()
-                .filter(((Predicate<RoleModel>) scopeContainer::hasScope).negate())
-                .filter(auth.roles()::canMapClientScope)
-                .map(ModelToRepresentation::toBriefRepresentation);
+        Set<RoleModel> roles = scopedClient.getRoles();
+        return ScopeMappedResource.getAvailable(auth, scopeContainer, roles);
     }
 
     /**
@@ -124,14 +125,11 @@ public class ScopeMappedClientResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @NoCache
-    public Stream<RoleRepresentation> getCompositeClientScopeMappings(@QueryParam("briefRepresentation") @DefaultValue("true") boolean briefRepresentation) {
+    public List<RoleRepresentation> getCompositeClientScopeMappings(@QueryParam("briefRepresentation") @DefaultValue("true") boolean briefRepresentation) {
         viewPermission.require();
 
-        Function<RoleModel, RoleRepresentation> toBriefRepresentation = briefRepresentation ?
-                ModelToRepresentation::toBriefRepresentation : ModelToRepresentation::toRepresentation;
-        return scopedClient.getRolesStream()
-                .filter(scopeContainer::hasScope)
-                .map(toBriefRepresentation);
+        Set<RoleModel> roles = scopedClient.getRoles();
+        return ScopeMappedResource.getComposite(scopeContainer, roles, briefRepresentation);
     }
 
     /**
@@ -166,10 +164,14 @@ public class ScopeMappedClientResource {
         managePermission.require();
 
         if (roles == null) {
-            roles = KeycloakModelUtils.getClientScopeMappingsStream(scopedClient, scopeContainer)
-                    .peek(scopeContainer::deleteScopeMapping)
-                    .map(ModelToRepresentation::toBriefRepresentation)
-                    .collect(Collectors.toList());
+            Set<RoleModel> roleModels = KeycloakModelUtils.getClientScopeMappings(scopedClient, scopeContainer);//scopedClient.getClientScopeMappings(client);
+            roles = new LinkedList<>();
+
+            for (RoleModel roleModel : roleModels) {
+                scopeContainer.deleteScopeMapping(roleModel);
+                roles.add(ModelToRepresentation.toBriefRepresentation(roleModel));
+            }
+
         } else {
             for (RoleRepresentation role : roles) {
                 RoleModel roleModel = scopedClient.getRole(role.getName());

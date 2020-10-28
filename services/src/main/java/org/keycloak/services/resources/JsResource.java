@@ -19,9 +19,6 @@ package org.keycloak.services.resources;
 
 import org.jboss.resteasy.spi.HttpRequest;
 import org.keycloak.common.Version;
-import org.keycloak.encoding.ResourceEncodingHelper;
-import org.keycloak.encoding.ResourceEncodingProvider;
-import org.keycloak.models.KeycloakSession;
 import org.keycloak.services.util.CacheControlUtil;
 import org.keycloak.utils.MediaType;
 
@@ -42,9 +39,6 @@ import java.io.InputStream;
  */
 @Path("/js")
 public class JsResource {
-
-    @Context
-    private KeycloakSession session;
 
     @Context
     private HttpRequest request;
@@ -126,24 +120,11 @@ public class JsResource {
             cacheControl = CacheControlUtil.noCache();
         }
 
-        String contentType = "text/javascript";
         Cors cors = Cors.add(request).allowAllOrigins();
 
-        ResourceEncodingProvider encodingProvider = ResourceEncodingHelper.getResourceEncodingProvider(session, contentType);
-
-        InputStream inputStream;
-        if (encodingProvider != null) {
-            inputStream = encodingProvider.getEncodedStream(() -> getClass().getClassLoader().getResourceAsStream(name), "js", name);
-        } else {
-            inputStream = getClass().getClassLoader().getResourceAsStream(name);
-        }
-
+        InputStream inputStream = getClass().getClassLoader().getResourceAsStream(name);
         if (inputStream != null) {
-            Response.ResponseBuilder rb = Response.ok(inputStream).type(contentType).cacheControl(cacheControl);
-            if (encodingProvider != null) {
-                rb.encoding(encodingProvider.getEncoding());
-            }
-            return cors.builder(rb).build();
+            return cors.builder(Response.ok(inputStream).type("text/javascript").cacheControl(cacheControl)).build();
         } else {
             return cors.builder(Response.status(Response.Status.NOT_FOUND)).build();
         }

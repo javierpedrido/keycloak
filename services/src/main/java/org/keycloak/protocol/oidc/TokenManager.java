@@ -23,8 +23,6 @@ import org.keycloak.OAuth2Constants;
 import org.keycloak.OAuthErrorException;
 import org.keycloak.TokenCategory;
 import org.keycloak.TokenVerifier;
-import org.keycloak.broker.oidc.OIDCIdentityProvider;
-import org.keycloak.broker.provider.IdentityBrokerException;
 import org.keycloak.cluster.ClusterProvider;
 import org.keycloak.common.ClientConnection;
 import org.keycloak.common.VerificationException;
@@ -34,7 +32,6 @@ import org.keycloak.crypto.SignatureProvider;
 import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
 import org.keycloak.events.EventBuilder;
-import org.keycloak.jose.jws.JWSInput;
 import org.keycloak.jose.jws.JWSInputException;
 import org.keycloak.jose.jws.crypto.HashUtils;
 import org.keycloak.migration.migrators.MigrationUtils;
@@ -62,34 +59,27 @@ import org.keycloak.representations.AccessToken;
 import org.keycloak.representations.AccessTokenResponse;
 import org.keycloak.representations.IDToken;
 import org.keycloak.representations.JsonWebToken;
-import org.keycloak.representations.LogoutToken;
 import org.keycloak.representations.RefreshToken;
 import org.keycloak.services.ErrorResponseException;
 import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.managers.AuthenticationSessionManager;
 import org.keycloak.services.managers.UserSessionCrossDCManager;
 import org.keycloak.services.managers.UserSessionManager;
-import org.keycloak.services.resources.IdentityBrokerService;
 import org.keycloak.services.util.DefaultClientSessionContext;
 import org.keycloak.services.util.MtlsHoKTokenUtil;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.util.TokenUtil;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
-
-import static org.keycloak.representations.IDToken.NONCE;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Stateless object that creates tokens and manages oauth access codes
@@ -488,21 +478,21 @@ public class TokenManager {
         } else {
 
             // 1 - Client roles of this client itself
-            Stream<RoleModel> scopeMappings = client.getRolesStream();
+            Set<RoleModel> scopeMappings = new HashSet<>(client.getRoles());
 
             // 2 - Role mappings of client itself + default client scopes + optional client scopes requested by scope parameter (if applyScopeParam is true)
             for (ClientScopeModel clientScope : clientScopes) {
                 if (logger.isTraceEnabled()) {
                     logger.tracef("Adding client scope role mappings of client scope '%s' to client '%s'", clientScope.getName(), client.getClientId());
                 }
-                scopeMappings = Stream.concat(scopeMappings, clientScope.getScopeMappingsStream());
+                scopeMappings.addAll(clientScope.getScopeMappings());
             }
 
             // 3 - Expand scope mappings
-            scopeMappings = RoleUtils.expandCompositeRolesStream(scopeMappings);
+            scopeMappings = RoleUtils.expandCompositeRoles(scopeMappings);
 
             // Intersection of expanded user roles and expanded scopeMappings
-            roleMappings.retainAll(scopeMappings.collect(Collectors.toSet()));
+            roleMappings.retainAll(scopeMappings);
 
             return roleMappings;
         }
@@ -1021,7 +1011,7 @@ public class TokenManager {
 
     }
 
-    public static class RefreshResult {
+    public class RefreshResult {
 
         private final AccessTokenResponse response;
         private final boolean offlineToken;
@@ -1080,98 +1070,4 @@ public class TokenManager {
             return new NotBeforeCheck(session.users().getNotBeforeOfUser(realmModel, userModel));
         }
     }
-
-    public LogoutTokenValidationCode verifyLogoutToken(KeycloakSession session, RealmModel realm, String encodedLogoutToken) {
-        Optional<LogoutToken> logoutTokenOptional = toLogoutToken(encodedLogoutToken);
-        if (!logoutTokenOptional.isPresent()) {
-            return LogoutTokenValidationCode.DECODE_TOKEN_FAILED;
-        }
-
-        LogoutToken logoutToken = logoutTokenOptional.get();
-        List<OIDCIdentityProvider> identityProviders = getOIDCIdentityProviders(realm, session).collect(Collectors.toList());
-        if (identityProviders.isEmpty()) {
-            return LogoutTokenValidationCode.COULD_NOT_FIND_IDP;
-        }
-
-        Stream<OIDCIdentityProvider> validOidcIdentityProviders =
-                validateLogoutTokenAgainstIdpProvider(identityProviders.stream(), encodedLogoutToken, logoutToken);
-        if (validOidcIdentityProviders.count() == 0) {
-            return LogoutTokenValidationCode.TOKEN_VERIFICATION_WITH_IDP_FAILED;
-        }
-
-        if (logoutToken.getSubject() == null && logoutToken.getSid() == null) {
-            return LogoutTokenValidationCode.MISSING_SID_OR_SUBJECT;
-        }
-
-        if (!checkLogoutTokenForEvents(logoutToken)) {
-            return LogoutTokenValidationCode.BACKCHANNEL_LOGOUT_EVENT_MISSING;
-        }
-
-        if (logoutToken.getOtherClaims().get(NONCE) != null) {
-            return LogoutTokenValidationCode.NONCE_CLAIM_IN_TOKEN;
-        }
-
-        if (logoutToken.getId() == null) {
-            return LogoutTokenValidationCode.LOGOUT_TOKEN_ID_MISSING;
-        }
-
-        if (logoutToken.getIat() == null) {
-            return LogoutTokenValidationCode.MISSING_IAT_CLAIM;
-        }
-
-        return LogoutTokenValidationCode.VALIDATION_SUCCESS;
-    }
-
-    public Optional<LogoutToken> toLogoutToken(String encodedLogoutToken) {
-        try {
-            JWSInput jws = new JWSInput(encodedLogoutToken);
-            return Optional.of(jws.readJsonContent(LogoutToken.class));
-        } catch (JWSInputException e) {
-            return Optional.empty();
-        }
-    }
-
-
-    public Stream<OIDCIdentityProvider> getValidOIDCIdentityProvidersForBackchannelLogout(RealmModel realm, KeycloakSession session, String encodedLogoutToken, LogoutToken logoutToken) {
-        return validateLogoutTokenAgainstIdpProvider(getOIDCIdentityProviders(realm, session), encodedLogoutToken, logoutToken);
-    }
-
-
-    public Stream<OIDCIdentityProvider> validateLogoutTokenAgainstIdpProvider(Stream<OIDCIdentityProvider> oidcIdps, String encodedLogoutToken, LogoutToken logoutToken) {
-            return oidcIdps
-                    .filter(oidcIdp -> oidcIdp.getConfig().getIssuer() != null)
-                    .filter(oidcIdp -> oidcIdp.isIssuer(logoutToken.getIssuer(), null))
-                    .filter(oidcIdp -> {
-                        try {
-                            oidcIdp.validateToken(encodedLogoutToken);
-                            return true;
-                        } catch (IdentityBrokerException e) {
-                            logger.debugf("LogoutToken verification with identity provider failed", e.getMessage());
-                            return false;
-                        }
-                    });
-    }
-
-    private Stream<OIDCIdentityProvider> getOIDCIdentityProviders(RealmModel realm, KeycloakSession session) {
-        try {
-            return realm.getIdentityProvidersStream()
-                    .map(idpModel ->
-                        IdentityBrokerService.getIdentityProviderFactory(session, idpModel).create(session, idpModel))
-                    .filter(OIDCIdentityProvider.class::isInstance)
-                    .map(OIDCIdentityProvider.class::cast);
-        } catch (IdentityBrokerException e) {
-            logger.warnf("LogoutToken verification with identity provider failed", e.getMessage());
-        }
-        return Stream.empty();
-    }
-
-    private boolean checkLogoutTokenForEvents(LogoutToken logoutToken) {
-        for (String eventKey : logoutToken.getEvents().keySet()) {
-            if (TokenUtil.TOKEN_BACKCHANNEL_LOGOUT_EVENT.equals(eventKey)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
 }

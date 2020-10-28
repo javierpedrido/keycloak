@@ -36,9 +36,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import org.jboss.logging.Logger;
 
 /**
  * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
@@ -60,7 +59,7 @@ public class HardcodedClientStorageProvider implements ClientStorageProvider, Cl
     }
 
     @Override
-    public ClientModel getClientById(RealmModel realm, String id) {
+    public ClientModel getClientById(String id, RealmModel realm) {
         StorageId storageId = new StorageId(id);
         final String clientId = storageId.getExternalId();
         if (this.clientId.equals(clientId)) return new ClientAdapter(realm);
@@ -68,7 +67,7 @@ public class HardcodedClientStorageProvider implements ClientStorageProvider, Cl
     }
 
     @Override
-    public ClientModel getClientByClientId(RealmModel realm, String clientId) {
+    public ClientModel getClientByClientId(String clientId, RealmModel realm) {
         if (this.clientId.equals(clientId)) return new ClientAdapter(realm);
         return null;
     }
@@ -79,17 +78,11 @@ public class HardcodedClientStorageProvider implements ClientStorageProvider, Cl
     }
 
     @Override
-    public Stream<ClientModel> searchClientsByClientIdStream(RealmModel realm, String clientId, Integer firstResult, Integer maxResults) {
-        if (Boolean.parseBoolean(component.getConfig().getFirst(HardcodedClientStorageProviderFactory.DELAYED_SEARCH))) try {
-            Thread.sleep(5000l);
-        } catch (InterruptedException ex) {
-            Logger.getLogger(HardcodedClientStorageProvider.class).warn(ex.getCause());
-            return Stream.empty();
-        }
+    public List<ClientModel> searchClientsByClientId(String clientId, Integer firstResult, Integer maxResults, RealmModel realm) {
         if (clientId != null && this.clientId.toLowerCase().contains(clientId.toLowerCase())) {
-            return Stream.of(new ClientAdapter(realm));
+            return Collections.singletonList(new ClientAdapter(realm));
         }
-        return Stream.empty();
+        return Collections.EMPTY_LIST;
     }
 
     public class ClientAdapter extends AbstractReadOnlyClientStorageAdapter {
@@ -281,13 +274,16 @@ public class HardcodedClientStorageProvider implements ClientStorageProvider, Cl
         }
 
         @Override
-        public Stream<RoleModel> getScopeMappingsStream() {
-            return Stream.of(realm.getRole("offline_access"));
+        public Set<RoleModel> getScopeMappings() {
+            RoleModel offlineAccess = realm.getRole("offline_access");
+            Set<RoleModel> set = new HashSet<>();
+            set.add(offlineAccess);
+            return set;
         }
 
         @Override
-        public Stream<RoleModel> getRealmScopeMappingsStream() {
-            return Stream.empty();
+        public Set<RoleModel> getRealmScopeMappings() {
+            return Collections.EMPTY_SET;
         }
 
         @Override

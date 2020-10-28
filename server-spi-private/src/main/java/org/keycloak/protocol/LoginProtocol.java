@@ -80,7 +80,7 @@ public interface LoginProtocol extends Provider {
 
     Response sendError(AuthenticationSessionModel authSession, Error error);
 
-    Response backchannelLogout(UserSessionModel userSession, AuthenticatedClientSessionModel clientSession);
+    void backchannelLogout(UserSessionModel userSession, AuthenticatedClientSessionModel clientSession);
     Response frontchannelLogout(UserSessionModel userSession, AuthenticatedClientSessionModel clientSession);
     Response finishLogout(UserSessionModel userSession);
 

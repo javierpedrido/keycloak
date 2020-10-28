@@ -56,14 +56,29 @@ public class CachedResource extends AbstractRevisioned implements InResourceServ
         this.type = resource.getType();
         this.owner = resource.getOwner();
         this.iconUri = resource.getIconUri();
-        this.resourceServerId = resource.getResourceServer();
+        this.resourceServerId = resource.getResourceServer().getId();
         ownerManagedAccess = resource.isOwnerManagedAccess();
 
-        this.uris = new DefaultLazyLoader<>(source -> new HashSet<>(source.getUris()), Collections::emptySet);
+        if (resource.isFetched("uris")) {
+            Set<String> data = new HashSet<>(resource.getUris());
+            this.uris = source -> data;
+        } else {
+            this.uris = new DefaultLazyLoader<>(source -> new HashSet<>(source.getUris()), Collections::emptySet);
+        }
 
-        this.scopesIds = new DefaultLazyLoader<>(source -> source.getScopes().stream().map(Scope::getId).collect(Collectors.toSet()), Collections::emptySet);
+        if (resource.isFetched("scopes")) {
+            Set<String> data = resource.getScopes().stream().map(Scope::getId).collect(Collectors.toSet());
+            this.scopesIds = source -> data;
+        } else {
+            this.scopesIds = new DefaultLazyLoader<>(source -> source.getScopes().stream().map(Scope::getId).collect(Collectors.toSet()), Collections::emptySet);
+        }
 
-        this.attributes = new DefaultLazyLoader<>(source -> new MultivaluedHashMap<>(source.getAttributes()), MultivaluedHashMap::new);
+        if (resource.isFetched("attributes")) {
+            MultivaluedHashMap<String, String> data = new MultivaluedHashMap<>(resource.getAttributes());
+            this.attributes = source -> data;
+        } else {
+            this.attributes = new DefaultLazyLoader<>(source -> new MultivaluedHashMap<>(source.getAttributes()), MultivaluedHashMap::new);
+        }
     }
 
 

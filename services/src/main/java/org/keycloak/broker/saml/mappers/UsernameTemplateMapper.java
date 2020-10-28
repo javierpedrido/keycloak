@@ -36,13 +36,9 @@ import org.keycloak.provider.ProviderConfigProperty;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
-import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -54,20 +50,10 @@ public class UsernameTemplateMapper extends AbstractIdentityProviderMapper {
 
     public static final String[] COMPATIBLE_PROVIDERS = {SAMLIdentityProviderFactory.PROVIDER_ID};
 
-    public static final String TEMPLATE = "template";
-    public static final String TARGET = "target";
-
-    public enum Target  {
-        LOCAL              { public void set(BrokeredIdentityContext context, String value) { context.setModelUsername(value); } },
-        BROKER_ID          { public void set(BrokeredIdentityContext context, String value) { context.setId(value); } },
-        BROKER_USERNAME    { public void set(BrokeredIdentityContext context, String value) { context.setUsername(value); } };
-        public abstract void set(BrokeredIdentityContext context, String value);
-    }
-    public static final List<String> TARGETS = Arrays.asList(Target.LOCAL.toString(), Target.BROKER_ID.toString(), Target.BROKER_USERNAME.toString());
-
-    public static final Map<String, UnaryOperator<String>> TRANSFORMERS = new HashMap<>();
-
     private static final List<ProviderConfigProperty> configProperties = new ArrayList<ProviderConfigProperty>();
+
+    public static final String TEMPLATE = "template";
+
     private static final Set<IdentityProviderSyncMode> IDENTITY_PROVIDER_SYNC_MODES = new HashSet<>(Arrays.asList(IdentityProviderSyncMode.values()));
 
     static {
@@ -75,23 +61,10 @@ public class UsernameTemplateMapper extends AbstractIdentityProviderMapper {
         property = new ProviderConfigProperty();
         property.setName(TEMPLATE);
         property.setLabel("Template");
-        property.setHelpText("Template to use to format the username to import.  Substitutions are enclosed in ${}.  For example: '${ALIAS}.${NAMEID}'.  ALIAS is the provider alias.  NAMEID is that SAML name id assertion.  ATTRIBUTE.<NAME> references a SAML attribute where name is the attribute name or friendly name. \n"
-          + "The substitution can be converted to upper or lower case by appending |uppercase or |lowercase to the substituted value, e.g. '${NAMEID | lowercase}");
+        property.setHelpText("Template to use to format the username to import.  Substitutions are enclosed in ${}.  For example: '${ALIAS}.${NAMEID}'.  ALIAS is the provider alias.  NAMEID is that SAML name id assertion.  ATTRIBUTE.<NAME> references a SAML attribute where name is the attribute name or friendly name.");
         property.setType(ProviderConfigProperty.STRING_TYPE);
         property.setDefaultValue("${ALIAS}.${NAMEID}");
         configProperties.add(property);
-
-        property = new ProviderConfigProperty();
-        property.setName(TARGET);
-        property.setLabel("Target");
-        property.setHelpText("Destination field for the mapper. LOCAL (default) means that the changes are applied to the username stored in local database upon user import. BROKER_ID and BROKER_USERNAME means that the changes are stored into the ID or username used for federation user lookup, respectively.");
-        property.setType(ProviderConfigProperty.LIST_TYPE);
-        property.setOptions(TARGETS);
-        property.setDefaultValue(Target.LOCAL.toString());
-        configProperties.add(property);
-
-        TRANSFORMERS.put("uppercase", String::toUpperCase);
-        TRANSFORMERS.put("lowercase", String::toLowerCase);
     }
 
     public static final String PROVIDER_ID = "saml-username-idp-mapper";
@@ -134,12 +107,12 @@ public class UsernameTemplateMapper extends AbstractIdentityProviderMapper {
     public void updateBrokeredUser(KeycloakSession session, RealmModel realm, UserModel user, IdentityProviderMapperModel mapperModel, BrokeredIdentityContext context) {
         // preprocessFederatedIdentity gets called anyways, so we only need to set the username if necessary.
         // However, we don't want to set the username when the email is used as username
-        if (getTarget(mapperModel.getConfig().get(TARGET)) == Target.LOCAL && !realm.isRegistrationEmailAsUsername()) {
+        if (!realm.isRegistrationEmailAsUsername()) {
             user.setUsername(context.getModelUsername());
         }
     }
 
-    private static final Pattern SUBSTITUTION = Pattern.compile("\\$\\{([^}]+?)(?:\\s*\\|\\s*(\\S+)\\s*)?\\}");
+    static Pattern substitution = Pattern.compile("\\$\\{([^}]+)\\}");
 
     @Override
     public void preprocessFederatedIdentity(KeycloakSession session, RealmModel realm, IdentityProviderMapperModel mapperModel, BrokeredIdentityContext context) {
@@ -149,21 +122,19 @@ public class UsernameTemplateMapper extends AbstractIdentityProviderMapper {
     private void setUserNameFromTemplate(IdentityProviderMapperModel mapperModel, BrokeredIdentityContext context) {
         AssertionType assertion = (AssertionType)context.getContextData().get(SAMLEndpoint.SAML_ASSERTION);
         String template = mapperModel.getConfig().get(TEMPLATE);
-        Matcher m = SUBSTITUTION.matcher(template);
+        Matcher m = substitution.matcher(template);
         StringBuffer sb = new StringBuffer();
         while (m.find()) {
             String variable = m.group(1);
-            UnaryOperator<String> transformer = Optional.ofNullable(m.group(2)).map(TRANSFORMERS::get).orElse(UnaryOperator.identity());
-
             if (variable.equals("ALIAS")) {
-                m.appendReplacement(sb, transformer.apply(context.getIdpConfig().getAlias()));
+                m.appendReplacement(sb, context.getIdpConfig().getAlias());
             } else if (variable.equals("UUID")) {
-                m.appendReplacement(sb, transformer.apply(KeycloakModelUtils.generateId()));
+                m.appendReplacement(sb, KeycloakModelUtils.generateId());
             } else if (variable.equals("NAMEID")) {
                 SubjectType subject = assertion.getSubject();
                 SubjectType.STSubType subType = subject.getSubType();
                 NameIDType subjectNameID = (NameIDType) subType.getBaseID();
-                m.appendReplacement(sb, transformer.apply(subjectNameID.getValue()));
+                m.appendReplacement(sb, subjectNameID.getValue());
             } else if (variable.startsWith("ATTRIBUTE.")) {
                 String name = variable.substring("ATTRIBUTE.".length());
                 String value = "";
@@ -179,29 +150,19 @@ public class UsernameTemplateMapper extends AbstractIdentityProviderMapper {
                         }
                     }
                 }
-                m.appendReplacement(sb, transformer.apply(value));
+                m.appendReplacement(sb, value);
             } else {
                 m.appendReplacement(sb, m.group(1));
             }
 
         }
         m.appendTail(sb);
-
-        Target t = getTarget(mapperModel.getConfig().get(TARGET));
-        t.set(context, sb.toString());
+        context.setModelUsername(sb.toString());
     }
 
     @Override
     public String getHelpText() {
         return "Format the username to import.";
-    }
-
-    public static Target getTarget(String value) {
-        try {
-            return value == null ? Target.LOCAL : Target.valueOf(value);
-        } catch (IllegalArgumentException ex) {
-            return Target.LOCAL;
-        }
     }
 
 }

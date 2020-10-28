@@ -33,7 +33,9 @@ public class MigrateTo2_5_0 implements Migration {
 
     @Override
     public void migrate(KeycloakSession session) {
-        session.realms().getRealmsStream().forEach(DefaultKeyProviders::createSecretProvider);
+        session.realms().getRealms().stream().forEach(
+                r -> DefaultKeyProviders.createSecretProvider(r)
+        );
     }
 
     @Override

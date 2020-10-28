@@ -202,9 +202,7 @@ public class Debug {
      */
     public static void loadConfig(File f) throws IOException {
         prop = new Properties();
-        try (FileInputStream is = new FileInputStream((f))) {
-            prop.load(is);
-        }
+        prop.load(new FileInputStream(f));
     }
 
     /**

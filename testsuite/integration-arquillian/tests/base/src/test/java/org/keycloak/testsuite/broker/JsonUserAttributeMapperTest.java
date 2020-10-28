@@ -8,7 +8,6 @@ import org.keycloak.broker.oidc.mappers.AbstractJsonUserAttributeMapper;
 import org.keycloak.models.IdentityProviderMapperModel;
 import org.keycloak.models.IdentityProviderMapperSyncMode;
 import org.keycloak.protocol.oidc.mappers.HardcodedClaim;
-import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.representations.idm.IdentityProviderMapperRepresentation;
 import org.keycloak.representations.idm.IdentityProviderRepresentation;
 import org.keycloak.representations.idm.ProtocolMapperRepresentation;
@@ -127,8 +126,7 @@ public class JsonUserAttributeMapperTest extends AbstractIdentityProviderMapperT
 
     private void updateClaimSentToIDP(String claim, String updatedValue) {
         ProtocolMapperRepresentation claimMapper = null;
-        final ClientRepresentation brokerClient = adminClient.realm(bc.providerRealmName()).clients().findByClientId(BrokerTestConstants.CLIENT_ID).get(0);
-        ProtocolMappersResource protocolMappers = adminClient.realm(bc.providerRealmName()).clients().get(brokerClient.getId()).getProtocolMappers();
+        ProtocolMappersResource protocolMappers = adminClient.realm(bc.providerRealmName()).clients().get(BrokerTestConstants.CLIENT_ID).getProtocolMappers();
         for (ProtocolMapperRepresentation representation : protocolMappers.getMappers()) {
             if (representation.getProtocolMapper().equals(HardcodedClaim.PROVIDER_ID)) {
                 claimMapper = representation;
@@ -136,7 +134,7 @@ public class JsonUserAttributeMapperTest extends AbstractIdentityProviderMapperT
         }
         assertThat(claimMapper, notNullValue());
         claimMapper.getConfig().put(HardcodedClaim.CLAIM_VALUE, "{\"" + claim + "\": \"" + updatedValue + "\"}");
-        adminClient.realm(bc.providerRealmName()).clients().get(brokerClient.getId()).getProtocolMappers().update(claimMapper.getId(), claimMapper);
+        adminClient.realm(bc.providerRealmName()).clients().get(BrokerTestConstants.CLIENT_ID).getProtocolMappers().update(claimMapper.getId(), claimMapper);
     }
 
     private void assertUserAttribute(String value, UserRepresentation userRep) {

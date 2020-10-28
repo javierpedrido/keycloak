@@ -45,7 +45,7 @@ public class SAML11ConditionsType extends CommonConditionsType {
         this.conditions.addAll(theConditions);
     }
 
-    public boolean remove(SAML11ConditionAbstractType condition) {
+    public boolean remove(SAML11ConditionsAbstractType condition) {
         return this.conditions.remove(condition);
     }
 

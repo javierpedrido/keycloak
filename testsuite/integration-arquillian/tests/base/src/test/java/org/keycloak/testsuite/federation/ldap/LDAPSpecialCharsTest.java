@@ -41,7 +41,6 @@ import org.keycloak.testsuite.util.LDAPTestUtils;
 
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static org.keycloak.testsuite.util.LDAPTestUtils.getGroupDescriptionLDAPAttrName;
 
@@ -163,7 +162,7 @@ public class LDAPSpecialCharsTest extends AbstractLDAPTest {
 
             // 2 - Check that group mappings are in LDAP and hence available through federation
 
-            Set<GroupModel> userGroups = specialUser.getGroupsStream().collect(Collectors.toSet());
+            Set<GroupModel> userGroups = specialUser.getGroups();
             Assert.assertEquals(2, userGroups.size());
             Assert.assertTrue(userGroups.contains(specialGroup));
 
@@ -183,7 +182,8 @@ public class LDAPSpecialCharsTest extends AbstractLDAPTest {
             specialUser.leaveGroup(specialGroup);
             specialUser.leaveGroup(groupWithSlashes);
 
-            Assert.assertEquals(0, specialUser.getGroupsStream().count());
+            userGroups = specialUser.getGroups();
+            Assert.assertEquals(0, userGroups.size());
 
         });
     }

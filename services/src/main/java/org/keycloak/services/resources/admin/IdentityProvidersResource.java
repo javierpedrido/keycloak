@@ -53,8 +53,6 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Stream;
 
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import org.keycloak.utils.ReservedCharValidator;
@@ -165,11 +163,15 @@ public class IdentityProvidersResource {
     @Path("instances")
     @NoCache
     @Produces(MediaType.APPLICATION_JSON)
-    public Stream<IdentityProviderRepresentation> getIdentityProviders() {
+    public List<IdentityProviderRepresentation> getIdentityProviders() {
         this.auth.realm().requireViewIdentityProviders();
 
-        return realm.getIdentityProvidersStream()
-                .map(provider -> StripSecretsUtils.strip(ModelToRepresentation.toRepresentation(realm, provider)));
+        List<IdentityProviderRepresentation> representations = new ArrayList<IdentityProviderRepresentation>();
+
+        for (IdentityProviderModel identityProviderModel : realm.getIdentityProviders()) {
+            representations.add(StripSecretsUtils.strip(ModelToRepresentation.toRepresentation(realm, identityProviderModel)));
+        }
+        return representations;
     }
 
     /**
@@ -211,9 +213,14 @@ public class IdentityProvidersResource {
     @Path("instances/{alias}")
     public IdentityProviderResource getIdentityProvider(@PathParam("alias") String alias) {
         this.auth.realm().requireViewIdentityProviders();
-        IdentityProviderModel identityProviderModel =  this.realm.getIdentityProvidersStream()
-                .filter(p -> Objects.equals(p.getAlias(), alias) || Objects.equals(p.getInternalId(), alias))
-                .findFirst().orElse(null);
+        IdentityProviderModel identityProviderModel = null;
+
+        for (IdentityProviderModel storedIdentityProvider : this.realm.getIdentityProviders()) {
+            if (storedIdentityProvider.getAlias().equals(alias)
+                    || storedIdentityProvider.getInternalId().equals(alias)) {
+                identityProviderModel = storedIdentityProvider;
+            }
+        }
 
         IdentityProviderResource identityProviderResource = new IdentityProviderResource(this.auth, realm, session, identityProviderModel, adminEvent);
         ResteasyProviderFactory.getInstance().injectProperties(identityProviderResource);

@@ -24,6 +24,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import javax.ws.rs.core.MultivaluedHashMap;
+import javax.ws.rs.core.MultivaluedMap;
+
 import org.jboss.logging.Logger;
 import org.keycloak.credential.CredentialModel;
 import org.keycloak.models.AuthenticationExecutionModel;
@@ -132,8 +135,7 @@ class AuthenticationSelectionResolver {
                 }
 
                 // Find the corresponding execution. If it is 1st REQUIRED execution in the particular subflow, we need to consider parent flow as well
-                List<AuthenticationExecutionModel> executions = realm.getAuthenticationExecutionsStream(execution.getParentFlow())
-                        .collect(Collectors.toList());
+                List<AuthenticationExecutionModel> executions = realm.getAuthenticationExecutions(execution.getParentFlow());
                 int executionIndex = executions.indexOf(execution);
                 if (executionIndex != 0) {
                     return flowId;
@@ -185,9 +187,11 @@ class AuthenticationSelectionResolver {
 
         logger.debugf("Going through the flow '%s' for adding executions", flowModel.getAlias());
 
+        List<AuthenticationExecutionModel> executions = processor.getRealm().getAuthenticationExecutions(flowId);
+
         List<AuthenticationExecutionModel> requiredList = new ArrayList<>();
         List<AuthenticationExecutionModel> alternativeList = new ArrayList<>();
-        flow.fillListsOfExecutions(processor.getRealm().getAuthenticationExecutionsStream(flowId), requiredList, alternativeList);
+        flow.fillListsOfExecutions(executions, requiredList, alternativeList);
 
         // If requiredList is not empty, we're going to collect just very first execution from the flow
         if (!requiredList.isEmpty()) {
@@ -209,10 +213,8 @@ class AuthenticationSelectionResolver {
                 return false;
             }
 
-            FormAuthenticatorFactory factory = (FormAuthenticatorFactory) processor.getSession().getKeycloakSessionFactory().getProviderFactory(FormAuthenticator.class, requiredExecution.getAuthenticator());
-
             // Recursively add credentials from required execution
-            if (requiredExecution.isAuthenticatorFlow() && factory == null) {
+            if (requiredExecution.isAuthenticatorFlow()) {
                 return addAllExecutionsFromSubflow(processor, requiredExecution.getFlowId(), typeAuthExecMap, nonCredentialExecutions);
             } else {
                 addSimpleAuthenticationExecution(processor, requiredExecution, typeAuthExecMap, nonCredentialExecutions);

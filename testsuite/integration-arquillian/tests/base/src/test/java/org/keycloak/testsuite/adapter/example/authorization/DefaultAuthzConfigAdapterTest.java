@@ -29,7 +29,6 @@ import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.representations.idm.authorization.PolicyRepresentation;
 import org.keycloak.testsuite.adapter.AbstractExampleAdapterTest;
 import org.keycloak.testsuite.arquillian.annotation.AppServerContainer;
-import org.keycloak.testsuite.util.ServerURLs;
 import org.keycloak.testsuite.utils.arquillian.ContainerConstants;
 
 import java.io.File;
@@ -109,7 +108,7 @@ public class DefaultAuthzConfigAdapterTest extends AbstractExampleAdapterTest {
     }
 
     private URL getResourceServerUrl() throws MalformedURLException {
-        return new URL(ServerURLs.getAppServerContextRoot() + "/" + RESOURCE_SERVER_ID);
+        return this.appServerContextRootPage.getUriBuilder().path(RESOURCE_SERVER_ID).build().toURL();
     }
 
     private void configureAuthorizationServices() {

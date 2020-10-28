@@ -140,7 +140,6 @@ public class RolePolicyProviderFactory implements PolicyProviderFactory<RolePoli
     }
 
     private void updateRoles(Policy policy, AuthorizationProvider authorization, Set<RolePolicyRepresentation.RoleDefinition> roles) {
-        KeycloakSession session = authorization.getKeycloakSession();
         RealmModel realm = authorization.getRealm();
         Set<RolePolicyRepresentation.RoleDefinition> updatedRoles = new HashSet<>();
 
@@ -176,7 +175,7 @@ public class RolePolicyProviderFactory implements PolicyProviderFactory<RolePoli
                 // fallback to find any client role with the given name
                 if (role == null) {
                     String finalRoleName = roleName;
-                    role = realm.getClientsStream().map(clientModel -> clientModel.getRole(finalRoleName)).filter(roleModel -> roleModel != null)
+                    role = realm.getClients().stream().map(clientModel -> clientModel.getRole(finalRoleName)).filter(roleModel -> roleModel != null)
                             .findFirst().orElse(null);
                 }
 
@@ -216,8 +215,7 @@ public class RolePolicyProviderFactory implements PolicyProviderFactory<RolePoli
 
                 if (container instanceof RealmModel) {
                     RealmModel realm = (RealmModel) container;
-                    realm.getClientsStream()
-                            .forEach(clientModel -> updateResourceServer(clientModel, removedRole, resourceServerStore, policyStore));
+                    realm.getClients().forEach(clientModel -> updateResourceServer(clientModel, removedRole, resourceServerStore, policyStore));
                 } else {
                     ClientModel clientModel = (ClientModel) container;
                     updateResourceServer(clientModel, removedRole, resourceServerStore, policyStore);

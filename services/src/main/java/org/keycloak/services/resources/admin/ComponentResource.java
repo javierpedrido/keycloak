@@ -55,8 +55,12 @@ import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.text.MessageFormat;
-import java.util.*;
-import java.util.stream.Stream;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 
 /**
  * @resource Component
@@ -90,32 +94,34 @@ public class ComponentResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @NoCache
-    public Stream<ComponentRepresentation> getComponents(@QueryParam("parent") String parent,
+    public List<ComponentRepresentation> getComponents(@QueryParam("parent") String parent,
                                                        @QueryParam("type") String type,
                                                        @QueryParam("name") String name) {
         auth.realm().requireViewRealm();
-        Stream<ComponentModel> components;
+        List<ComponentModel> components = Collections.EMPTY_LIST;
         if (parent == null && type == null) {
-            components = realm.getComponentsStream();
+            components = realm.getComponents();
 
         } else if (type == null) {
-            components = realm.getComponentsStream(parent);
+            components = realm.getComponents(parent);
         } else if (parent == null) {
-            components = realm.getComponentsStream(realm.getId(), type);
+            components = realm.getComponents(realm.getId(), type);
         } else {
-            components = realm.getComponentsStream(parent, type);
+            components = realm.getComponents(parent, type);
         }
-
-        return components
-                .filter(component -> Objects.isNull(name) || Objects.equals(component.getName(), name))
-                .map(component -> {
-                    try {
-                        return ModelToRepresentation.toRepresentation(session, component, false);
-                    } catch (Exception e) {
-                        logger.error("Failed to get component list for component model" + component.getName() + "of realm " + realm.getName());
-                        return ModelToRepresentation.toRepresentationWithoutConfig(component);
-                    }
-                });
+        List<ComponentRepresentation> reps = new LinkedList<>();
+        for (ComponentModel component : components) {
+            if (name != null && !name.equals(component.getName())) continue;
+            ComponentRepresentation rep = null;
+            try {
+                rep = ModelToRepresentation.toRepresentation(session, component, false);
+            } catch (Exception e) {
+                logger.error("Failed to get component list for component model" + component.getName() + "of realm " + realm.getName());
+                rep = ModelToRepresentation.toRepresentationWithoutConfig(component);
+            }
+            reps.add(rep);
+        }
+        return reps;
     }
 
     @POST

@@ -69,7 +69,7 @@ public class UmaDiscoveryDocumentTest extends AbstractKeycloakTest {
             assertEquals(configuration.getAuthorizationEndpoint(), OIDCLoginProtocolService.authUrl(UriBuilder.fromUri(OAuthClient.AUTH_SERVER_ROOT)).build("test").toString());
             assertEquals(configuration.getTokenEndpoint(), oauth.getAccessTokenUrl());
             assertEquals(configuration.getJwksUri(), oauth.getCertsUrl("test"));
-            assertEquals(configuration.getIntrospectionEndpoint(), oauth.getTokenIntrospectionUrl());
+            assertEquals(configuration.getTokenIntrospectionEndpoint(), oauth.getTokenIntrospectionUrl());
 
             String registrationUri = UriBuilder
                     .fromUri(OAuthClient.AUTH_SERVER_ROOT)

@@ -66,7 +66,6 @@ public abstract class AbstractExampleAdapterTest extends AbstractAdapterTest {
                 .importFrom(new File(EXAMPLES_HOME + "/" + name + "-" + EXAMPLES_VERSION_SUFFIX + ".war"))
                 .as(WebArchive.class)
                 .addAsWebInfResource(jbossDeploymentStructure, JBOSS_DEPLOYMENT_STRUCTURE_XML);
-        addSameSiteUndertowHandlers(webArchive);
 
         additionalResources.accept(webArchive);
 
@@ -98,7 +97,6 @@ public abstract class AbstractExampleAdapterTest extends AbstractAdapterTest {
                 .as(WebArchive.class)
                 .addAsWebInfResource(jbossDeploymentStructure, JBOSS_DEPLOYMENT_STRUCTURE_XML)
                 .add(new StringAsset(webXmlContent), "/WEB-INF/web.xml");
-        addSameSiteUndertowHandlers(webArchive);
 
         additionalResources.accept(webArchive);
 

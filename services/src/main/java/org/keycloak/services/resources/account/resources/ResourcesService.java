@@ -203,10 +203,10 @@ public class ResourcesService extends AbstractResourceService {
                 result = result.subList(0, size - 1);
             }
 
-            return Response.ok().entity(result).links(createPageLinks(first, max, size)).build();
+            return cors(Response.ok().entity(result).links(createPageLinks(first, max, size)));
         }
 
-        return Response.ok().entity(query.apply(-1, -1).collect(Collectors.toList())).build();
+        return cors(Response.ok().entity(query.apply(-1, -1).collect(Collectors.toList())));
     }
 
     private Link[] createPageLinks(Integer first, Integer max, int resultSize) {

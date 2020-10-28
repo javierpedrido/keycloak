@@ -53,7 +53,6 @@ import java.security.Key;
 import java.security.KeyManagementException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -124,21 +123,16 @@ public class SamlClient {
 
             @Override
             public HttpPost createSamlUnsignedRequest(URI samlEndpoint, String relayState, Document samlRequest) {
-                return createSamlPostMessage(samlEndpoint, relayState, samlRequest, GeneralConstants.SAML_REQUEST_KEY, null, null, null);
+                return createSamlPostMessage(samlEndpoint, relayState, samlRequest, GeneralConstants.SAML_REQUEST_KEY, null, null);
             }
 
             @Override
             public HttpPost createSamlUnsignedResponse(URI samlEndpoint, String relayState, Document samlRequest) {
-                return createSamlPostMessage(samlEndpoint, relayState, samlRequest, GeneralConstants.SAML_RESPONSE_KEY, null, null, null);
+                return createSamlPostMessage(samlEndpoint, relayState, samlRequest, GeneralConstants.SAML_RESPONSE_KEY, null, null);
             }
 
             @Override
             public HttpUriRequest createSamlSignedResponse(URI samlEndpoint, String relayState, Document samlRequest, String realmPrivateKey, String realmPublicKey) {
-                return createSamlSignedResponse(samlEndpoint, relayState, samlRequest, realmPrivateKey, realmPublicKey, null);
-            }
-
-            @Override
-            public HttpUriRequest createSamlSignedResponse(URI samlEndpoint, String relayState, Document samlRequest, String realmPrivateKey, String realmPublicKey, String certificateStr) {
                 return null;
             }
 
@@ -152,15 +146,10 @@ public class SamlClient {
 
             @Override
             public HttpPost createSamlSignedRequest(URI samlEndpoint, String relayState, Document samlRequest, String realmPrivateKey, String realmPublicKey) {
-                return createSamlSignedRequest(samlEndpoint, relayState, samlRequest, realmPrivateKey, realmPublicKey, null);
+                return createSamlPostMessage(samlEndpoint, relayState, samlRequest, GeneralConstants.SAML_REQUEST_KEY, realmPrivateKey, realmPublicKey);
             }
 
-            @Override
-            public HttpPost createSamlSignedRequest(URI samlEndpoint, String relayState, Document samlRequest, String realmPrivateKey, String realmPublicKey, String certificateStr) {
-                return createSamlPostMessage(samlEndpoint, relayState, samlRequest, GeneralConstants.SAML_REQUEST_KEY, realmPrivateKey, realmPublicKey, certificateStr);
-            }
-
-            private HttpPost createSamlPostMessage(URI samlEndpoint, String relayState, Document samlRequest, String messageType, String privateKeyStr, String publicKeyStr, String certificateStr) {
+            private HttpPost createSamlPostMessage(URI samlEndpoint, String relayState, Document samlRequest, String messageType, String privateKeyStr, String publicKeyStr) {
                 HttpPost post = new HttpPost(samlEndpoint);
 
                 List<NameValuePair> parameters = new LinkedList<>();
@@ -172,10 +161,9 @@ public class SamlClient {
                     if (privateKeyStr != null && publicKeyStr != null) {
                         PrivateKey privateKey = org.keycloak.testsuite.util.KeyUtils.privateKeyFromString(privateKeyStr);
                         PublicKey publicKey = org.keycloak.testsuite.util.KeyUtils.publicKeyFromString(publicKeyStr);
-                        X509Certificate cert = org.keycloak.common.util.PemUtils.decodeCertificate(certificateStr);
                         binding
                                 .signatureAlgorithm(SignatureAlgorithm.RSA_SHA256)
-                                .signWith(KeyUtils.createKeyId(privateKey), privateKey, publicKey, cert)
+                                .signWith(KeyUtils.createKeyId(privateKey), privateKey, publicKey)
                                 .signDocument();
                     }
 
@@ -254,11 +242,6 @@ public class SamlClient {
 
             @Override
             public HttpUriRequest createSamlSignedResponse(URI samlEndpoint, String relayState, Document samlRequest, String realmPrivateKey, String realmPublicKey) {
-                return createSamlSignedResponse(samlEndpoint, relayState, samlRequest, realmPrivateKey, realmPublicKey, null);
-            }
-
-            @Override
-            public HttpUriRequest createSamlSignedResponse(URI samlEndpoint, String relayState, Document samlRequest, String realmPrivateKey, String realmPublicKey, String certificateStr) {
 
                 try {
                     BaseSAML2BindingBuilder binding = new BaseSAML2BindingBuilder();
@@ -266,10 +249,9 @@ public class SamlClient {
                     if (realmPrivateKey != null && realmPublicKey != null) {
                         PrivateKey privateKey = org.keycloak.testsuite.util.KeyUtils.privateKeyFromString(realmPrivateKey);
                         PublicKey publicKey = org.keycloak.testsuite.util.KeyUtils.publicKeyFromString(realmPublicKey);
-                        X509Certificate cert = org.keycloak.common.util.PemUtils.decodeCertificate(certificateStr);
                         binding
                                 .signatureAlgorithm(SignatureAlgorithm.RSA_SHA256)
-                                .signWith(KeyUtils.createKeyId(privateKey), privateKey, publicKey, cert)
+                                .signWith(KeyUtils.createKeyId(privateKey), privateKey, publicKey)
                                 .signDocument();
                     }
 
@@ -291,19 +273,13 @@ public class SamlClient {
 
             @Override
             public HttpUriRequest createSamlSignedRequest(URI samlEndpoint, String relayState, Document samlRequest, String privateKeyStr, String publicKeyStr) {
-                return createSamlSignedRequest(samlEndpoint, relayState, samlRequest, privateKeyStr, publicKeyStr, null);
-            }
-
-            @Override
-            public HttpUriRequest createSamlSignedRequest(URI samlEndpoint, String relayState, Document samlRequest, String privateKeyStr, String publicKeyStr, String certificateStr) {
                 try {
                     BaseSAML2BindingBuilder binding = new BaseSAML2BindingBuilder().relayState(relayState);
                     if (privateKeyStr != null && publicKeyStr != null) {
                         PrivateKey privateKey = org.keycloak.testsuite.util.KeyUtils.privateKeyFromString(privateKeyStr);
                         PublicKey publicKey = org.keycloak.testsuite.util.KeyUtils.publicKeyFromString(publicKeyStr);
-                        X509Certificate cert = org.keycloak.common.util.PemUtils.decodeCertificate(certificateStr);
                         binding.signatureAlgorithm(SignatureAlgorithm.RSA_SHA256)
-                                .signWith(KeyUtils.createKeyId(privateKey), privateKey, publicKey, cert)
+                                .signWith(KeyUtils.createKeyId(privateKey), privateKey, publicKey)
                                 .signDocument();
                     }
                     return new HttpGet(binding.redirectBinding(samlRequest).requestURI(samlEndpoint.toString()));
@@ -323,15 +299,11 @@ public class SamlClient {
 
         public abstract HttpUriRequest createSamlSignedRequest(URI samlEndpoint, String relayState, Document samlRequest, String realmPrivateKey, String realmPublicKey);
 
-        public abstract HttpUriRequest createSamlSignedRequest(URI samlEndpoint, String relayState, Document samlRequest, String realmPrivateKey, String realmPublicKey, String certificateStr);
-
         public abstract URI getBindingUri();
 
         public abstract HttpUriRequest createSamlUnsignedResponse(URI samlEndpoint, String relayState, Document samlRequest);
 
         public abstract HttpUriRequest createSamlSignedResponse(URI samlEndpoint, String relayState, Document samlRequest, String realmPrivateKey, String realmPublicKey);
-
-        public abstract HttpUriRequest createSamlSignedResponse(URI samlEndpoint, String relayState, Document samlRequest, String realmPrivateKey, String realmPublicKey, String certificateStr);
 
         public abstract String extractRelayState(CloseableHttpResponse response) throws IOException;
     }

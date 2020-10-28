@@ -266,10 +266,13 @@ public class CredentialTypeMetadata implements Comparable<CredentialTypeMetadata
                 return false;
             }
 
-            return realm.getRequiredActionProvidersStream()
-                    .filter(RequiredActionProviderModel::isEnabled)
-                    .map(RequiredActionProviderModel::getProviderId)
-                    .anyMatch(requiredActionProviderId::equals);
+            for (RequiredActionProviderModel requiredActionProvider : realm.getRequiredActionProviders()) {
+                if (requiredActionProviderId.equals(requiredActionProvider.getProviderId()) && requiredActionProvider.isEnabled()) {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
     }

@@ -17,17 +17,14 @@
 
 package org.keycloak.cluster.infinispan;
 
-import org.infinispan.client.hotrod.ProtocolVersion;
 import org.infinispan.configuration.cache.Configuration;
 import org.infinispan.configuration.cache.ConfigurationBuilder;
 import org.infinispan.configuration.cache.StoreConfigurationBuilder;
 import org.infinispan.configuration.global.GlobalConfigurationBuilder;
-import org.infinispan.jboss.marshalling.core.JBossUserMarshaller;
 import org.infinispan.manager.DefaultCacheManager;
 import org.infinispan.manager.EmbeddedCacheManager;
 import org.infinispan.persistence.remote.configuration.ExhaustedAction;
 import org.infinispan.persistence.remote.configuration.RemoteStoreConfigurationChildBuilder;
-import org.keycloak.connections.infinispan.InfinispanConnectionProvider;
 
 /**
  * @author <a href="mailto:mposolda@redhat.com">Marek Posolda</a>
@@ -40,22 +37,16 @@ class TestCacheManagerFactory {
         System.setProperty("jgroups.tcp.port", "53715");
         GlobalConfigurationBuilder gcb = new GlobalConfigurationBuilder();
 
-        // For Infinispan 10, we go with the JBoss marshalling.
-        // TODO: This should be replaced later with the marshalling recommended by infinispan. Probably protostream.
-        // See https://infinispan.org/docs/stable/titles/developing/developing.html#marshalling for the details
-        gcb.serialization().marshaller(new JBossUserMarshaller());
-
-        boolean clustered = true;
+        boolean clustered = false;
         boolean async = false;
         boolean allowDuplicateJMXDomains = true;
 
         if (clustered) {
             gcb = gcb.clusteredDefault();
-            gcb.transport().clusterName("test-clustering-" + threadId);
+            gcb.transport().clusterName("test-clustering");
         }
 
-        gcb.jmx()
-                .domain(InfinispanConnectionProvider.JMX_DOMAIN + "-" + threadId).enable();
+        gcb.globalJmxStatistics().allowDuplicateDomains(allowDuplicateJMXDomains);
 
         EmbeddedCacheManager cacheManager = new DefaultCacheManager(gcb.build());
 
@@ -71,13 +62,11 @@ class TestCacheManagerFactory {
     private <T extends StoreConfigurationBuilder<?, T> & RemoteStoreConfigurationChildBuilder<T>> Configuration getCacheBackedByRemoteStore(int threadId, String cacheName, Class<T> builderClass) {
         ConfigurationBuilder cacheConfigBuilder = new ConfigurationBuilder();
 
-        //String host = "localhost";
-        //int port = threadId==1 ? 12232 : 13232;
-        String host = threadId==1 ? "jdg1" : "jdg2";
-        int port = 11222;
+        String host = "localhost";
+        int port = threadId==1 ? 12232 : 13232;
+        //int port = 11222;
 
-        return cacheConfigBuilder.statistics().enable()
-                .persistence().addStore(builderClass)
+        return cacheConfigBuilder.persistence().addStore(builderClass)
                 .fetchPersistentState(false)
                 .ignoreModifications(false)
                 .purgeOnStartup(false)
@@ -87,7 +76,7 @@ class TestCacheManagerFactory {
                 .rawValues(true)
                 .forceReturnValues(false)
                 .marshaller(KeycloakHotRodMarshallerFactory.class.getName())
-                .protocolVersion(ProtocolVersion.PROTOCOL_VERSION_29)
+                //.protocolVersion(ProtocolVersion.PROTOCOL_VERSION_26)
                 //.maxBatchSize(5)
                 .addServer()
                     .host(host)

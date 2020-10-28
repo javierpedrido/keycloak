@@ -17,7 +17,9 @@
 
 package org.keycloak.services.clientregistration.policy;
 
-import java.util.Objects;
+import java.util.List;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import org.jboss.logging.Logger;
 import org.keycloak.component.ComponentModel;
@@ -43,6 +45,7 @@ public class ClientRegistrationPolicyManager {
 
         });
     }
+
 
     public static void triggerAfterRegister(ClientRegistrationContext context, RegistrationAuth authType, ClientModel client) {
         try {
@@ -95,34 +98,36 @@ public class ClientRegistrationPolicyManager {
 
 
 
-    private static void triggerPolicies(KeycloakSession session, ClientRegistrationProvider provider, RegistrationAuth authType,
-                                        String opDescription, ClientRegOperation op) throws ClientRegistrationPolicyException {
+    private static void triggerPolicies(KeycloakSession session, ClientRegistrationProvider provider, RegistrationAuth authType, String opDescription, ClientRegOperation op) throws ClientRegistrationPolicyException {
         RealmModel realm = session.getContext().getRealm();
 
         String policyTypeKey = getComponentTypeKey(authType);
-        realm.getComponentsStream(realm.getId(), ClientRegistrationPolicy.class.getName())
-                .filter(componentModel -> Objects.equals(componentModel.getSubType(), policyTypeKey))
-                .forEach(policyModel -> runPolicy(policyModel, session, provider, opDescription, op));
-    }
+        List<ComponentModel> policyModels = realm.getComponents(realm.getId(), ClientRegistrationPolicy.class.getName());
 
-    private static void runPolicy(ComponentModel policyModel, KeycloakSession session, ClientRegistrationProvider provider,
-                           String opDescription, ClientRegOperation op) throws ClientRegistrationPolicyException {
-        ClientRegistrationPolicy policy = session.getProvider(ClientRegistrationPolicy.class, policyModel);
-        if (policy == null) {
-            throw new ClientRegistrationPolicyException("Policy of type '" + policyModel.getProviderId() + "' not found");
-        }
+        policyModels = policyModels.stream().filter((ComponentModel model) -> {
 
-        if (logger.isTraceEnabled()) {
-            logger.tracef("Running policy '%s' %s", policyModel.getName(), opDescription);
-        }
+            return policyTypeKey.equals(model.getSubType());
 
-        try {
-            op.run(policy);
-        } catch (ClientRegistrationPolicyException crpe) {
-            provider.getEvent().detail(Details.CLIENT_REGISTRATION_POLICY, policyModel.getName());
-            crpe.setPolicyModel(policyModel);
-            ServicesLogger.LOGGER.clientRegistrationRequestRejected(opDescription, crpe.getMessage());
-            throw crpe;
+        }).collect(Collectors.toList());
+
+        for (ComponentModel policyModel : policyModels) {
+            ClientRegistrationPolicy policy = session.getProvider(ClientRegistrationPolicy.class, policyModel);
+            if (policy == null) {
+                throw new ClientRegistrationPolicyException("Policy of type '" + policyModel.getProviderId() + "' not found");
+            }
+
+            if (logger.isTraceEnabled()) {
+                logger.tracef("Running policy '%s' %s", policyModel.getName(), opDescription);
+            }
+
+            try {
+                op.run(policy);
+            } catch (ClientRegistrationPolicyException crpe) {
+                provider.getEvent().detail(Details.CLIENT_REGISTRATION_POLICY, policyModel.getName());
+                crpe.setPolicyModel(policyModel);
+                ServicesLogger.LOGGER.clientRegistrationRequestRejected(opDescription, crpe.getMessage());
+                throw crpe;
+            }
         }
     }
 

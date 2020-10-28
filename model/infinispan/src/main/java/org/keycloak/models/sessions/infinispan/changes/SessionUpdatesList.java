@@ -21,7 +21,6 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.keycloak.models.RealmModel;
-import org.keycloak.models.UserSessionModel;
 import org.keycloak.models.sessions.infinispan.entities.SessionEntity;
 
 /**
@@ -37,16 +36,9 @@ class SessionUpdatesList<S extends SessionEntity> {
 
     private List<SessionUpdateTask<S>> updateTasks = new LinkedList<>();
 
-    private final UserSessionModel.SessionPersistenceState persistenceState;
-
     public SessionUpdatesList(RealmModel realm, SessionEntityWrapper<S> entityWrapper) {
-        this(realm, entityWrapper, UserSessionModel.SessionPersistenceState.PERSISTENT);
-    }
-
-    public SessionUpdatesList(RealmModel realm, SessionEntityWrapper<S> entityWrapper, UserSessionModel.SessionPersistenceState persistenceState) {
         this.realm = realm;
         this.entityWrapper = entityWrapper;
-        this.persistenceState = persistenceState;
     }
 
     public RealmModel getRealm() {
@@ -68,9 +60,5 @@ class SessionUpdatesList<S extends SessionEntity> {
 
     public void setUpdateTasks(List<SessionUpdateTask<S>> updateTasks) {
         this.updateTasks = updateTasks;
-    }
-
-    public UserSessionModel.SessionPersistenceState getPersistenceState() {
-        return persistenceState;
     }
 }

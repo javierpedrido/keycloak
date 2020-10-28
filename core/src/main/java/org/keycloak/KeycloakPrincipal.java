@@ -72,7 +72,6 @@ public class KeycloakPrincipal<T extends KeycloakSecurityContext> implements Pri
         DelegatingSerializationFilter.builder()
                 .addAllowedClass(KeycloakPrincipal.class)
                 .addAllowedClass(KeycloakSecurityContext.class)
-                .addAllowedPattern("org.keycloak.adapters.RefreshableKeycloakSecurityContext")
                 .setFilter(in);
 
         in.defaultReadObject();

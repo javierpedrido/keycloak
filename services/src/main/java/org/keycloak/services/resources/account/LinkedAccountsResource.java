@@ -19,8 +19,12 @@ package org.keycloak.services.resources.account;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
+import java.util.UUID;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -34,6 +38,7 @@ import org.jboss.logging.Logger;
 import org.jboss.resteasy.spi.HttpRequest;
 import org.keycloak.broker.social.SocialIdentityProvider;
 import org.keycloak.common.util.Base64Url;
+import org.keycloak.credential.CredentialModel;
 import org.keycloak.events.Details;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.events.EventType;
@@ -109,33 +114,38 @@ public class LinkedAccountsResource {
     }
 
     public SortedSet<LinkedAccountRepresentation> getLinkedAccounts(KeycloakSession session, RealmModel realm, UserModel user) {
+        List<IdentityProviderModel> identityProviders = realm.getIdentityProviders();
+        SortedSet<LinkedAccountRepresentation> linkedAccounts = new TreeSet<>();
+        
+        if (identityProviders == null || identityProviders.isEmpty()) return linkedAccounts;
+        
         Set<String> socialIds = findSocialIds();
         Set<FederatedIdentityModel> identities = session.users().getFederatedIdentities(user, realm);
-        return realm.getIdentityProvidersStream().filter(IdentityProviderModel::isEnabled)
-                .map(provider -> toLinkedAccountRepresentation(provider, socialIds, identities))
-                .collect(Collectors.toCollection(TreeSet::new));
-    }
+        for (IdentityProviderModel provider : identityProviders) {
+            if (!provider.isEnabled()) {
+                continue;
+            }
+            String providerId = provider.getAlias();
 
-    private LinkedAccountRepresentation toLinkedAccountRepresentation(IdentityProviderModel provider, Set<String> socialIds,
-                                                                      Set<FederatedIdentityModel> identities) {
-        String providerId = provider.getAlias();
+            FederatedIdentityModel identity = getIdentity(identities, providerId);
 
-        FederatedIdentityModel identity = getIdentity(identities, providerId);
+            String displayName = KeycloakModelUtils.getIdentityProviderDisplayName(session, provider);
+            String guiOrder = provider.getConfig() != null ? provider.getConfig().get("guiOrder") : null;
 
-        String displayName = KeycloakModelUtils.getIdentityProviderDisplayName(session, provider);
-        String guiOrder = provider.getConfig() != null ? provider.getConfig().get("guiOrder") : null;
-
-        LinkedAccountRepresentation rep = new LinkedAccountRepresentation();
-        rep.setConnected(identity != null);
-        rep.setSocial(socialIds.contains(provider.getProviderId()));
-        rep.setProviderAlias(providerId);
-        rep.setDisplayName(displayName);
-        rep.setGuiOrder(guiOrder);
-        rep.setProviderName(provider.getAlias());
-        if (identity != null) {
-            rep.setLinkedUsername(identity.getUserName());
+            LinkedAccountRepresentation rep = new LinkedAccountRepresentation();
+            rep.setConnected(identity != null);
+            rep.setSocial(socialIds.contains(provider.getProviderId()));
+            rep.setProviderAlias(providerId);
+            rep.setDisplayName(displayName);
+            rep.setGuiOrder(guiOrder);
+            rep.setProviderName(provider.getAlias());
+            if (identity != null) {
+                rep.setLinkedUsername(identity.getUserName());
+            }
+            linkedAccounts.add(rep);
         }
-        return rep;
+        
+        return linkedAccounts;
     }
     
     private FederatedIdentityModel getIdentity(Set<FederatedIdentityModel> identities, String providerId) {
@@ -249,6 +259,12 @@ public class LinkedAccountsResource {
     }
     
     private boolean isValidProvider(String providerId) {
-        return realm.getIdentityProvidersStream().anyMatch(model -> Objects.equals(model.getAlias(), providerId));
+        for (IdentityProviderModel model : realm.getIdentityProviders()) {
+            if (model.getAlias().equals(providerId)) {
+                return true;
+            }
+        }
+        
+        return false;
     }
 }

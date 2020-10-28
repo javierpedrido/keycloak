@@ -55,14 +55,7 @@ public class Result {
     }
 
     public PolicyResult policy(Policy policy) {
-        PolicyResult result = results.get(policy.getId());
-        
-        if (result == null) {
-            result = new PolicyResult(policy);
-            results.put(policy.getId(), result);
-        }
-
-        return result;
+        return results.computeIfAbsent(policy.getId(), id -> new PolicyResult(policy));
     }
 
     public void setStatus(final Effect status) {

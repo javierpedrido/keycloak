@@ -59,7 +59,7 @@ public class SAML11EvidenceType {
     }
 
     public boolean remove(SAML11AssertionType assertion) {
-        return this.assertions.remove(assertion);
+        return this.assertions.remove(assertionIDReference);
     }
 
     public List<SAML11AssertionType> getAssertions() {

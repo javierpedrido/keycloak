@@ -70,7 +70,7 @@ public class JPAResourceStore implements ResourceStore {
         }
 
         entity.setName(name);
-        entity.setResourceServer(ResourceServerAdapter.toEntity(entityManager, resourceServer).getId());
+        entity.setResourceServer(ResourceServerAdapter.toEntity(entityManager, resourceServer));
         entity.setOwner(owner);
 
         this.entityManager.persist(entity);
@@ -130,7 +130,7 @@ public class JPAResourceStore implements ResourceStore {
             queryName = pagination ? "findAnyResourceIdByOwnerOrdered" : "findAnyResourceIdByOwner";
         }
 
-        TypedQuery<ResourceEntity> query = entityManager.createNamedQuery(queryName, ResourceEntity.class);
+        TypedQuery<String> query = entityManager.createNamedQuery(queryName, String.class);
 
         query.setFlushMode(FlushModeType.COMMIT);
         query.setParameter("owner", ownerId);
@@ -145,7 +145,15 @@ public class JPAResourceStore implements ResourceStore {
         }
 
         ResourceStore resourceStore = provider.getStoreFactory().getResourceStore();
-        query.getResultStream().map(id -> resourceStore.findById(id.getId(), resourceServerId)).forEach(consumer);
+        List<String> result = query.getResultList();
+
+        for (String entity : result) {
+            Resource cached = resourceStore.findById(entity, resourceServerId);
+            
+            if (cached != null) {
+                consumer.accept(cached);
+            }
+        }
     }
 
     @Override
@@ -201,7 +209,7 @@ public class JPAResourceStore implements ResourceStore {
         List<Predicate> predicates = new ArrayList();
 
         if (resourceServerId != null) {
-            predicates.add(builder.equal(root.get("resourceServer"), resourceServerId));
+            predicates.add(builder.equal(root.get("resourceServer").get("id"), resourceServerId));
         }
 
         attributes.forEach((name, value) -> {

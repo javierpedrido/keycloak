@@ -19,14 +19,8 @@ package org.keycloak.models;
 
 import org.keycloak.provider.ProviderEvent;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
@@ -49,56 +43,17 @@ public interface RoleContainerModel {
 
     boolean removeRole(RoleModel role);
 
-    @Deprecated
-    default Set<RoleModel> getRoles() {
-        return getRolesStream().collect(Collectors.toSet());
-    }
+    Set<RoleModel> getRoles();
+    
+    Set<RoleModel> getRoles(Integer firstResult, Integer maxResults);
 
-    Stream<RoleModel> getRolesStream();
-
-    @Deprecated
-    default Set<RoleModel> getRoles(Integer firstResult, Integer maxResults) {
-        return getRolesStream(firstResult, maxResults).collect(Collectors.toSet());
-    }
-
-    Stream<RoleModel> getRolesStream(Integer firstResult, Integer maxResults);
-
-    @Deprecated
-    default Set<RoleModel> searchForRoles(String search, Integer first, Integer max) {
-        return searchForRolesStream(search, first, max).collect(Collectors.toSet());
-    }
-
-    Stream<RoleModel> searchForRolesStream(String search, Integer first, Integer max);
-
-    @Deprecated
-    default List<String> getDefaultRoles() {
-        return getDefaultRolesStream().collect(Collectors.toList());
-    }
-
-    Stream<String> getDefaultRolesStream();
+    Set<RoleModel> searchForRoles(String search, Integer first, Integer max);
+    
+    List<String> getDefaultRoles();
 
     void addDefaultRole(String name);
 
-    default void updateDefaultRoles(String... defaultRoles) {
-        List<String> defaultRolesArray = Arrays.asList(defaultRoles);
-        Collection<String> entities = getDefaultRolesStream().collect(Collectors.toList());
-        Set<String> already = new HashSet<>();
-        ArrayList<String> remove = new ArrayList<>();
-        for (String rel : entities) {
-            if (! defaultRolesArray.contains(rel)) {
-                remove.add(rel);
-            } else {
-                already.add(rel);
-            }
-        }
-        removeDefaultRoles(remove.toArray(new String[] {}));
-
-        for (String roleName : defaultRoles) {
-            if (!already.contains(roleName)) {
-                addDefaultRole(roleName);
-            }
-        }
-    }
+    void updateDefaultRoles(String... defaultRoles);
 
     void removeDefaultRoles(String... defaultRoles);
 

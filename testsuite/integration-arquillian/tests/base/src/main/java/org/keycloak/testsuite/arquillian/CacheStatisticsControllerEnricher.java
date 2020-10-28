@@ -8,9 +8,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.net.MalformedURLException;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -84,8 +81,7 @@ public class CacheStatisticsControllerEnricher implements TestEnricher {
     }
 
     private InfinispanStatistics getInfinispanCacheStatistics(JmxInfinispanCacheStatistics annotation) throws MalformedObjectNameException, IOException, MalformedURLException {
-        List<ObjectName> mbeanNameTemplates = new LinkedList<>();
-        mbeanNameTemplates.add(new ObjectName(String.format(
+        ObjectName mbeanName = new ObjectName(String.format(
           "%s:type=%s,name=\"%s(%s)\",manager=\"%s\",component=%s",
           annotation.domain().isEmpty() ? getDefaultDomain(annotation.dc().getDcIndex(), annotation.dcNodeIndex()) : InfinispanConnectionProvider.JMX_DOMAIN,
           annotation.type(),
@@ -93,17 +89,9 @@ public class CacheStatisticsControllerEnricher implements TestEnricher {
           annotation.cacheMode(),
           annotation.cacheManagerName(),
           annotation.component()
-        )));
+        ));
 
-        // For the Keycloak on Wildfly 20 and bigger, the typical objectName for the cache statistics looks similar to: jboss.as:subsystem=infinispan,cache-container=keycloak,cache=actionTokens
-        if (annotation.dc().getDcIndex() != -1 && annotation.dcNodeIndex() != -1) {
-            mbeanNameTemplates.add(new ObjectName(String.format(
-                    "jboss.as:subsystem=infinispan,cache-container=keycloak,cache=%s",
-                    annotation.cacheName()
-            )));
-        }
-
-        InfinispanStatistics value = new InfinispanCacheStatisticsImpl(getJmxServerConnection(annotation), mbeanNameTemplates);
+        InfinispanStatistics value = new InfinispanCacheStatisticsImpl(getJmxServerConnection(annotation), mbeanName);
 
         if (annotation.domain().isEmpty()) {
             try {
@@ -113,7 +101,7 @@ public class CacheStatisticsControllerEnricher implements TestEnricher {
             } catch (RuntimeException ex) {
                 if (annotation.dc() != DC.UNDEFINED && annotation.dcNodeIndex() != -1
                    && suiteContext.get().getAuthServerBackendsInfo(annotation.dc().getDcIndex()).get(annotation.dcNodeIndex()).isStarted()) {
-                    LOG.warn("Could not reset statistics for any of the mbean name templates " + mbeanNameTemplates + ". The reason is: \"" + ex.getMessage() + "\"");
+                    LOG.warn("Could not reset statistics for " + mbeanName + ". The reason is: \"" + ex.getMessage() + "\"");
                 }
             }
         }
@@ -265,16 +253,12 @@ public class CacheStatisticsControllerEnricher implements TestEnricher {
     private static abstract class CacheStatisticsImpl implements InfinispanStatistics {
 
         private final Supplier<MBeanServerConnection> mbscCreateor;
-        private final List<ObjectName> mbeanNameTemplates;
+        private final ObjectName mbeanNameTemplate;
         private ObjectName mbeanName;
 
         public CacheStatisticsImpl(Supplier<MBeanServerConnection> mbscCreateor, ObjectName mbeanNameTemplate) {
-            this(mbscCreateor, Collections.singletonList(mbeanNameTemplate));
-        }
-
-        public CacheStatisticsImpl(Supplier<MBeanServerConnection> mbscCreateor, List<ObjectName> mbeanNameTemplates) {
             this.mbscCreateor = mbscCreateor;
-            this.mbeanNameTemplates = mbeanNameTemplates;
+            this.mbeanNameTemplate = mbeanNameTemplate;
         }
 
         protected MBeanServerConnection getConnection() {
@@ -311,18 +295,11 @@ public class CacheStatisticsControllerEnricher implements TestEnricher {
 
         protected ObjectName getMbeanName() throws IOException, RuntimeException {
             if (this.mbeanName == null) {
-                // Try all the mbeanName templates
-                for (ObjectName mbeanNameTemplate : this.mbeanNameTemplates) {
-                    Set<ObjectName> queryNames = getConnection().queryNames(mbeanNameTemplate, null);
-                    if (queryNames.isEmpty()) {
-                        LOG.infof("No MBean available for the template %s .", mbeanNameTemplate);
-                        continue;
-                    }
-                    this.mbeanName = queryNames.iterator().next();
-                    return this.mbeanName;
+                Set<ObjectName> queryNames = getConnection().queryNames(mbeanNameTemplate, null);
+                if (queryNames.isEmpty()) {
+                    throw new RuntimeException("No MBean of template " + mbeanNameTemplate + " found at JMX server");
                 }
-
-                throw new RuntimeException("No MBean for any of the templates " + this.mbeanNameTemplates + " found at JMX server");
+                this.mbeanName = queryNames.iterator().next();
             }
 
             return this.mbeanName;
@@ -345,7 +322,7 @@ public class CacheStatisticsControllerEnricher implements TestEnricher {
                     getMbeanName();
                     if (! isAvailable()) throw new RuntimeException("Not available");
                 } catch (IOException | RuntimeException ex) {
-                    throw new RuntimeException("Timed out while waiting for any of the mbean name templates " + this.mbeanNameTemplates + " to become available", ex);
+                    throw new RuntimeException("Timed out while waiting for " + mbeanNameTemplate + " to become available", ex);
                 }
             }, 1 + (int) timeInMillis / 100, 100);
         }
@@ -355,8 +332,8 @@ public class CacheStatisticsControllerEnricher implements TestEnricher {
 
     private static class InfinispanCacheStatisticsImpl extends CacheStatisticsImpl {
 
-        public InfinispanCacheStatisticsImpl(Supplier<MBeanServerConnection> mbscCreator, List<ObjectName> mbeanNames) {
-            super(mbscCreator, mbeanNames);
+        public InfinispanCacheStatisticsImpl(Supplier<MBeanServerConnection> mbscCreator, ObjectName mbeanName) {
+            super(mbscCreator, mbeanName);
         }
 
         @Override
@@ -370,7 +347,7 @@ public class CacheStatisticsControllerEnricher implements TestEnricher {
 
         @Override
         protected boolean isAvailable() {
-            return getSingleStatistics(Constants.STAT_CACHE_HITS) != null;
+            return getSingleStatistics(Constants.STAT_CACHE_ELAPSED_TIME) != null;
         }
     }
 

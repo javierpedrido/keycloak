@@ -19,7 +19,6 @@ package org.keycloak.services.resources;
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.spi.HttpRequest;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
-import org.keycloak.OAuthErrorException;
 import org.keycloak.authorization.AuthorizationProvider;
 import org.keycloak.authorization.AuthorizationService;
 import org.keycloak.common.ClientConnection;
@@ -31,7 +30,6 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.protocol.LoginProtocol;
 import org.keycloak.protocol.LoginProtocolFactory;
-import org.keycloak.services.CorsErrorResponseException;
 import org.keycloak.services.clientregistration.ClientRegistrationService;
 import org.keycloak.services.managers.RealmManager;
 import org.keycloak.services.resource.RealmResourceProvider;
@@ -209,9 +207,7 @@ public class RealmsResource {
     public Object getAccountService(final @PathParam("realm") String name) {
         RealmModel realm = init(name);
         EventBuilder event = new EventBuilder(realm, session, clientConnection);
-        AccountLoader accountLoader = new AccountLoader(session, event);
-        ResteasyProviderFactory.getInstance().injectProperties(accountLoader);
-        return accountLoader;
+        return new AccountLoader().getAccountService(session, event);
     }
 
     @Path("{realm}")
@@ -247,8 +243,7 @@ public class RealmsResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response getWellKnown(final @PathParam("realm") String name,
                                  final @PathParam("provider") String providerName) {
-        RealmModel realm = init(name);
-        checkSsl(realm);
+        init(name);
 
         WellKnownProvider wellKnown = session.getProvider(WellKnownProvider.class, providerName);
 
@@ -289,14 +284,5 @@ public class RealmsResource {
         }
 
         throw new NotFoundException();
-    }
-
-    private void checkSsl(RealmModel realm) {
-        if (!session.getContext().getUri().getBaseUri().getScheme().equals("https")
-                && realm.getSslRequired().isRequired(clientConnection)) {
-            Cors cors = Cors.add(request).auth().allowedMethods(request.getHttpMethod()).auth().exposedHeaders(Cors.ACCESS_CONTROL_ALLOW_METHODS);
-            throw new CorsErrorResponseException(cors.allowAllOrigins(), OAuthErrorException.INVALID_REQUEST, "HTTPS required",
-                    Response.Status.FORBIDDEN);
-        }
     }
 }

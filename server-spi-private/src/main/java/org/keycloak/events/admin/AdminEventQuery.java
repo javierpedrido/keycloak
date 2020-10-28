@@ -19,8 +19,6 @@ package org.keycloak.events.admin;
 
 import java.util.Date;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * @author <a href="mailto:sthorger@redhat.com">Stian Thorgersen</a>
@@ -129,16 +127,8 @@ public interface AdminEventQuery {
 
     /**
      * Executes the query and returns the results
-     * @deprecated Use {@link #getResultStream() getResultStream} instead.
+     * 
+     * @return
      */
-    @Deprecated
-    default List<AdminEvent> getResultList() {
-        return getResultStream().collect(Collectors.toList());
-    }
-
-    /**
-     * Executes the query and returns the results as a stream.
-     * @return Stream of admin events
-     */
-    Stream<AdminEvent> getResultStream();
+    List<AdminEvent> getResultList();
 }

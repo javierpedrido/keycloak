@@ -49,10 +49,8 @@ import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.net.URI;
-import java.util.*;
-import java.util.stream.Stream;
-
-import static org.keycloak.utils.StreamsUtil.throwIfEmpty;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Top level resource for Admin REST API
@@ -93,22 +91,28 @@ public class RealmsAdminResource {
     @GET
     @NoCache
     @Produces(MediaType.APPLICATION_JSON)
-    public Stream<RealmRepresentation> getRealms() {
-        Stream<RealmRepresentation> realms = session.realms().getRealmsStream()
-                .map(this::toRealmRep)
-                .filter(Objects::nonNull);
-        return throwIfEmpty(realms, new ForbiddenException());
+    public List<RealmRepresentation> getRealms() {
+        List<RealmRepresentation> reps = new ArrayList<RealmRepresentation>();
+        List<RealmModel> realms = session.realms().getRealms();
+        for (RealmModel realm : realms) {
+            addRealmRep(reps, realm);
+        }
+        if (reps.isEmpty()) {
+            throw new ForbiddenException();
+        }
+
+        logger.debug(("getRealms()"));
+        return reps;
     }
 
-    protected RealmRepresentation toRealmRep(RealmModel realm) {
+    protected void addRealmRep(List<RealmRepresentation> reps, RealmModel realm) {
         if (AdminPermissions.realms(session, auth).canView(realm)) {
-            return ModelToRepresentation.toRepresentation(realm, false);
+            reps.add(ModelToRepresentation.toRepresentation(realm, false));
         } else if (AdminPermissions.realms(session, auth).isAdmin(realm)) {
             RealmRepresentation rep = new RealmRepresentation();
             rep.setRealm(realm.getName());
-            return rep;
+            reps.add(rep);
         }
-        return null;
     }
 
     /**

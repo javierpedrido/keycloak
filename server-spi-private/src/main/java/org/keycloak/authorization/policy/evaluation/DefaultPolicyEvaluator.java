@@ -18,7 +18,7 @@
 
 package org.keycloak.authorization.policy.evaluation;
 
-import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -52,13 +52,11 @@ public class DefaultPolicyEvaluator implements PolicyEvaluator {
         PolicyEnforcementMode enforcementMode = resourceServer.getPolicyEnforcementMode();
 
         if (PolicyEnforcementMode.DISABLED.equals(enforcementMode)) {
-            grantAndComplete(permission, authorizationProvider, executionContext, decision);
-            return;
-        }
-        
-        // if marked as granted we just complete the evaluation
-        if (permission.isGranted()) {
-            grantAndComplete(permission, authorizationProvider, executionContext, decision);
+            DefaultEvaluation evaluation = new DefaultEvaluation(permission, executionContext, decision, authorizationProvider);
+
+            evaluation.grant();
+
+            decision.onComplete(permission);
             return;
         }
 
@@ -80,7 +78,7 @@ public class DefaultPolicyEvaluator implements PolicyEvaluator {
             }
         }
 
-        Collection<Scope> scopes = permission.getScopes();
+        List<Scope> scopes = permission.getScopes();
 
         if (!scopes.isEmpty()) {
             policyStore.findByScopeIds(scopes.stream().map(Scope::getId).collect(Collectors.toList()), null, resourceServer.getId(), policyConsumer);
@@ -92,17 +90,10 @@ public class DefaultPolicyEvaluator implements PolicyEvaluator {
         }
 
         if (PolicyEnforcementMode.PERMISSIVE.equals(enforcementMode)) {
-            grantAndComplete(permission, authorizationProvider, executionContext, decision);
+            DefaultEvaluation evaluation = new DefaultEvaluation(permission, executionContext, decision, authorizationProvider);
+            evaluation.grant();
+            decision.onComplete(permission);
         }
-    }
-
-    private void grantAndComplete(ResourcePermission permission, AuthorizationProvider authorizationProvider,
-            EvaluationContext executionContext, Decision decision) {
-        DefaultEvaluation evaluation = new DefaultEvaluation(permission, executionContext, decision, authorizationProvider);
-
-        evaluation.grant();
-
-        decision.onComplete(permission);
     }
 
     private Consumer<Policy> createPolicyEvaluator(ResourcePermission permission, AuthorizationProvider authorizationProvider, EvaluationContext executionContext, Decision decision, AtomicBoolean verified, Map<Policy, Map<Object, Decision.Effect>> decisionCache) {

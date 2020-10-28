@@ -17,6 +17,7 @@
 
 package org.keycloak.migration.migrators;
 
+import org.keycloak.keys.KeyProvider;
 import org.keycloak.migration.ModelVersion;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
@@ -36,7 +37,11 @@ public class MigrateTo3_4_0 implements Migration {
 
     @Override
     public void migrate(KeycloakSession session) {
-        session.realms().getRealmsStream().forEach(this::migrateRealm);
+        session.realms().getRealms().stream().forEach(
+                r -> {
+                    migrateRealm(r);
+                }
+        );
     }
 
     @Override

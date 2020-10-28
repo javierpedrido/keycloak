@@ -87,9 +87,9 @@ public interface RoleResource {
     Set<RoleRepresentation> getRealmRoleComposites();
 
     @GET
-    @Path("composites/clients/{clientUuid}")
+    @Path("composites/clients/{appName}")
     @Produces(MediaType.APPLICATION_JSON)
-    Set<RoleRepresentation> getClientRoleComposites(@PathParam("clientUuid") String clientUuid);
+    Set<RoleRepresentation> getClientRoleComposites(@PathParam("appName") String appName);
 
     @POST
     @Path("composites")

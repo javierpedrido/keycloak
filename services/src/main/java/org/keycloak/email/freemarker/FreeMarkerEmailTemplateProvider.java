@@ -270,7 +270,7 @@ public class FreeMarkerEmailTemplateProvider implements EmailTemplateProvider {
         return sb.toString();
     }
 
-    protected static class EmailTemplate {
+    protected class EmailTemplate {
 
         private String subject;
         private String textBody;

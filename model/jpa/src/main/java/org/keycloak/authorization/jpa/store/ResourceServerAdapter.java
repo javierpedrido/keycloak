@@ -102,7 +102,7 @@ public class ResourceServerAdapter extends AbstractAuthorizationModel implements
     }
 
     public static ResourceServerEntity toEntity(EntityManager em, ResourceServer resource) {
-        if (resource instanceof ResourceServerAdapter) {
+        if (resource instanceof ResourceAdapter) {
             return ((ResourceServerAdapter)resource).getEntity();
         } else {
             return em.getReference(ResourceServerEntity.class, resource.getId());

@@ -87,7 +87,13 @@ public class ClientScopesClientRegistrationPolicyFactory extends AbstractClientR
         if (realm == null) {
             return Collections.emptyList();
         } else {
-            return realm.getClientScopesStream().map(ClientScopeModel::getName).collect(Collectors.toList());
+            List<ClientScopeModel> clientScopes = realm.getClientScopes();
+
+            return clientScopes.stream().map((ClientScopeModel clientScope) -> {
+
+                return clientScope.getName();
+
+            }).collect(Collectors.toList());
         }
     }
 

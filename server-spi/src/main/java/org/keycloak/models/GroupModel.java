@@ -19,12 +19,9 @@ package org.keycloak.models;
 
 import org.keycloak.provider.ProviderEvent;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
@@ -36,9 +33,6 @@ public interface GroupModel extends RoleMapperModel {
         GroupModel getGroup();
         KeycloakSession getKeycloakSession();
     }
-    
-    Comparator<GroupModel> COMPARE_BY_NAME = Comparator.comparing(GroupModel::getName);
-
     String getId();
 
     String getName();
@@ -67,24 +61,13 @@ public interface GroupModel extends RoleMapperModel {
      * @param name
      * @return list of all attribute values or empty list if there are not any values. Never return null
      */
-    @Deprecated
-    default List<String> getAttribute(String name) {
-        return getAttributeStream(name).collect(Collectors.toList());
-    }
-
-    Stream<String> getAttributeStream(String name);
+    List<String> getAttribute(String name);
 
     Map<String, List<String>> getAttributes();
 
     GroupModel getParent();
     String getParentId();
-
-    @Deprecated
-    default Set<GroupModel> getSubGroups() {
-        return getSubGroupsStream().collect(Collectors.toSet());
-    }
-
-    Stream<GroupModel> getSubGroupsStream();
+    Set<GroupModel> getSubGroups();
 
     /**
      * You must also call addChild on the parent group, addChild on RealmModel if there is no parent group

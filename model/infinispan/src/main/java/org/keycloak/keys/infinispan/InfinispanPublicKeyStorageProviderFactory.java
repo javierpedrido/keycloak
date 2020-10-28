@@ -146,7 +146,7 @@ public class InfinispanPublicKeyStorageProviderFactory implements PublicKeyStora
         }
     }
 
-    private static class SessionAndKeyHolder {
+    private class SessionAndKeyHolder {
         private final KeycloakSession session;
         private final ArrayList<String> cacheKeys;
 
